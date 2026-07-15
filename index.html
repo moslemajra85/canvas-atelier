@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Canvas Atelier — learn creative coding by writing JavaScript and seeing the result instantly."
+    />
+    <title>Canvas Atelier — JavaScript Creative Coding Studio</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23090a0d'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23d8ff42'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Canvas Atelier home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>Canvas <strong>Atelier</strong></span>
+        </a>
+
+        <div class="project-title">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>Bioluminescent butterfly</span>
+          <span class="saved-label" id="savedLabel">Saved locally</span>
+        </div>
+
+        <nav class="top-actions" aria-label="Project actions">
+          <button class="icon-button" id="shortcutsButton" type="button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
+          <button class="button button-ghost" id="resetButton" type="button">Reset</button>
+          <button class="button button-primary" id="runButton" type="button">
+            <span class="play-icon" aria-hidden="true"></span>
+            Run
+            <kbd>⌘ ↵</kbd>
+          </button>
+        </nav>
+      </header>
+
+      <main class="workspace">
+        <section class="panel editor-panel" aria-label="JavaScript editor">
+          <div class="panel-header">
+            <div class="file-tab" aria-current="page">
+              <span class="js-badge">JS</span>
+              <span>artwork.js</span>
+              <span class="dirty-indicator" id="dirtyIndicator" aria-label="Unsaved changes"></span>
+            </div>
+            <div class="editor-meta">
+              <label class="switch-label" for="autoRunToggle">
+                Auto-run
+                <input id="autoRunToggle" type="checkbox" checked />
+                <span class="switch" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="editor-wrap" id="editorWrap">
+            <div id="codeEditor" aria-label="JavaScript source code"></div>
+          </div>
+
+          <footer class="editor-statusbar">
+            <span id="cursorPosition">Ln 1, Col 1</span>
+            <span>Spaces: 2</span>
+            <span>UTF-8</span>
+            <span class="language-label"><span class="js-badge small">JS</span> JavaScript</span>
+          </footer>
+        </section>
+
+        <section class="panel preview-panel" aria-label="Artwork preview">
+          <div class="panel-header preview-header">
+            <div class="preview-title">
+              <span class="live-dot" aria-hidden="true"></span>
+              Live canvas
+              <span class="fps-label" id="fpsLabel">— fps</span>
+            </div>
+            <div class="preview-actions">
+              <button class="icon-action animation-button" id="animationButton" type="button" title="Pause animation" aria-label="Pause animation">
+                <span class="pause-icon" aria-hidden="true"></span>
+              </button>
+              <button class="icon-action" id="refreshButton" type="button" title="Restart preview" aria-label="Restart preview">↻</button>
+              <button class="icon-action" id="downloadButton" type="button" title="Export PNG" aria-label="Export artwork as PNG">↓</button>
+              <button class="icon-action" id="fullscreenButton" type="button" title="Fullscreen preview" aria-label="Show preview fullscreen">⛶</button>
+            </div>
+          </div>
+
+          <div class="canvas-stage" id="canvasStage">
+            <iframe
+              id="previewFrame"
+              title="JavaScript artwork output"
+              sandbox="allow-scripts allow-downloads"
+            ></iframe>
+            <div class="running-indicator" id="runningIndicator" aria-live="polite">
+              <span></span> Rendering
+            </div>
+          </div>
+
+          <div class="console" id="consolePanel">
+            <div class="console-header">
+              <div class="console-tabs">
+                <button class="console-tab active" type="button">Console <span id="messageCount">0</span></button>
+              </div>
+              <button class="clear-button" id="clearConsoleButton" type="button">Clear</button>
+            </div>
+            <div class="console-output" id="consoleOutput" aria-live="polite">
+              <div class="console-empty">Run your code to see logs and errors here.</div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="lesson-card" id="lessonCard" aria-label="Current lesson">
+        <button class="lesson-close" id="lessonClose" type="button" aria-label="Close lesson">×</button>
+        <div class="lesson-kicker" id="lessonKicker">Creative coding note · 01</div>
+        <h2 id="lessonTitle">Recursion draws the wings</h2>
+        <p id="lessonBody">Recursion builds the structure; time-based transforms bring it to life.</p>
+        <div class="lesson-progress"><span></span></div>
+      </aside>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+      <dialog class="shortcuts-dialog" id="shortcutsDialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">Workbench</span>
+            <h2>Keyboard shortcuts</h2>
+          </div>
+          <button class="icon-button" id="closeShortcutsButton" type="button" aria-label="Close">×</button>
+        </div>
+        <dl>
+          <div><dt>Run artwork</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>Enter</kbd></dd></div>
+          <div><dt>Indent selection</dt><dd><kbd>Tab</kbd></dd></div>
+          <div><dt>Save locally</dt><dd>Automatic</dd></div>
+        </dl>
+      </dialog>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
