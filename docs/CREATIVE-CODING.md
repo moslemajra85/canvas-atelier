@@ -200,7 +200,30 @@ ctx.fill();
 
 If the marker appears in the wrong place, the issue is coordinate state, not the shape algorithm. That distinction prevents random edits to unrelated code.
 
-## 10. Practice challenges
+## 10. Cache expensive artwork
+
+If a detailed object keeps its structure while moving, do not reconstruct every path every frame. Draw it to an offscreen canvas when it changes, then animate that bitmap:
+
+```js
+const layer = document.createElement("canvas");
+const layerCtx = layer.getContext("2d");
+
+// Expensive generation happens once.
+drawDetailedObject(layerCtx);
+
+function animate(time) {
+  ctx.clearRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(width / 2, height / 2 + Math.sin(time * 0.002) * 8);
+  ctx.drawImage(layer, -layer.width / 2, -layer.height / 2);
+  ctx.restore();
+  requestAnimationFrame(animate);
+}
+```
+
+This is the same separation used by many games: create or load an asset outside the frame loop, then transform and composite it cheaply during rendering.
+
+## 11. Practice challenges
 
 ### Challenge 1: Controlled palette
 
@@ -235,4 +258,3 @@ Acceptance criteria:
 - Recursion cannot exceed a defined performance limit.
 
 These challenges move from visual control to animation and finally reproducibility—the same progression used in production generative-art tools.
-

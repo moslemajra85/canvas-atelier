@@ -1,26 +1,54 @@
-const DEFAULT_KEY = "canvas-atelier:artwork";
+const DEFAULT_PREFIX = "canvas-atelier";
+const LEGACY_SOURCE_KEY = "canvas-atelier:artwork";
 
 /** Repository for project persistence. */
 export class ProjectStorage {
-  constructor(storage = window.localStorage, key = DEFAULT_KEY) {
+  constructor(storage = window.localStorage, prefix = DEFAULT_PREFIX) {
     this.storage = storage;
-    this.key = key;
+    this.prefix = prefix;
   }
 
-  load(fallback) {
+  sourceKey(lessonId) {
+    return `${this.prefix}:lesson:${lessonId}`;
+  }
+
+  load(lessonId, fallback) {
     try {
-      return this.storage.getItem(this.key) || fallback;
+      const lessonSource = this.storage.getItem(this.sourceKey(lessonId));
+      if (lessonSource) return lessonSource;
+
+      // Preserve work created before lessons were introduced.
+      if (lessonId === "bioluminescent-butterfly") {
+        return this.storage.getItem(LEGACY_SOURCE_KEY) || fallback;
+      }
+      return fallback;
     } catch {
       return fallback;
     }
   }
 
-  save(source) {
+  save(lessonId, source) {
     try {
-      this.storage.setItem(this.key, source);
+      this.storage.setItem(this.sourceKey(lessonId), source);
       return true;
     } catch {
       return false;
+    }
+  }
+
+  loadActiveLesson(fallback) {
+    try {
+      return this.storage.getItem(`${this.prefix}:active-lesson`) || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  saveActiveLesson(lessonId) {
+    try {
+      this.storage.setItem(`${this.prefix}:active-lesson`, lessonId);
+    } catch {
+      // The studio remains usable when persistence is blocked.
     }
   }
 }

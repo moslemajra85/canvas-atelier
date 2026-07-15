@@ -89,7 +89,7 @@ The small Observer implementation communicates runtime events without making the
 
 ### `src/lessons`
 
-Each lesson exports metadata and learner source. Adding another lesson is an additive change: register a new object instead of editing sandbox internals. A catalog/registry becomes useful when the second lesson is added.
+Each lesson exports metadata and learner source. `LessonCatalog` indexes those definitions and provides a safe default. Adding another lesson is an additive change: create a module and register its object without editing sandbox internals. Each lesson receives an independent persisted draft.
 
 ### `src/ui/StudioController.js`
 
@@ -143,6 +143,8 @@ The studio validates `event.source`, the protocol `source`, and `runId`. An old 
 The preview captures the browser's native animation functions and exposes controlled replacements to learner code. Each learner callback receives a public ID mapped to its native frame request. Pausing holds pending callbacks without destroying them; resuming schedules them again. Cancellation works for both scheduled and held callbacks.
 
 FPS counts executed learner callbacks rather than the runtime's monitoring loop. This distinguishes an animated sketch from an idle canvas. The initial lesson also paints once synchronously so throttled tabs and static captures still display meaningful artwork before the first animation frame.
+
+Complex animated art should separate expensive generation from cheap per-frame motion. The butterfly renders recursive glowing paths to an offscreen canvas when its mutation or size changes. Its animation loop only paints a background and transforms the cached image. The kinetic fractal intentionally redraws recursion, but caps depth and avoids per-branch shadow blur. The flight lesson draws only a few Bézier paths per frame.
 
 ## Canvas sizing
 

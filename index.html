@@ -27,12 +27,12 @@
 
         <div class="project-title">
           <span class="status-dot" aria-hidden="true"></span>
-          <span>Bioluminescent butterfly</span>
+          <span id="projectName">Bioluminescent butterfly</span>
           <span class="saved-label" id="savedLabel">Saved locally</span>
         </div>
 
         <nav class="top-actions" aria-label="Project actions">
-          <button class="icon-button" id="shortcutsButton" type="button" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
+          <button class="icon-button" id="helpButton" type="button" title="Help and guide" aria-label="Open help and guide">?</button>
           <button class="button button-ghost" id="resetButton" type="button">Reset</button>
           <button class="button button-primary" id="runButton" type="button">
             <span class="play-icon" aria-hidden="true"></span>
@@ -47,10 +47,14 @@
           <div class="panel-header">
             <div class="file-tab" aria-current="page">
               <span class="js-badge">JS</span>
-              <span>artwork.js</span>
+              <span id="fileName">butterfly.js</span>
               <span class="dirty-indicator" id="dirtyIndicator" aria-label="Unsaved changes"></span>
             </div>
             <div class="editor-meta">
+              <label class="lesson-picker" for="lessonSelect">
+                <span>Lesson</span>
+                <select id="lessonSelect" aria-label="Choose a creative coding lesson"></select>
+              </label>
               <label class="switch-label" for="autoRunToggle">
                 Auto-run
                 <input id="autoRunToggle" type="checkbox" checked />
@@ -123,19 +127,80 @@
 
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-      <dialog class="shortcuts-dialog" id="shortcutsDialog">
-        <div class="dialog-heading">
+      <dialog class="help-dialog" id="helpDialog">
+        <div class="dialog-heading help-heading">
           <div>
-            <span class="eyebrow">Workbench</span>
-            <h2>Keyboard shortcuts</h2>
+            <span class="eyebrow">Canvas Atelier handbook</span>
+            <h2>Create, understand, and debug animated JavaScript art</h2>
+            <p>Everything you need to move from your first shape to a responsive generative sketch.</p>
           </div>
-          <button class="icon-button" id="closeShortcutsButton" type="button" aria-label="Close">×</button>
+          <button class="icon-button" id="closeHelpButton" type="button" aria-label="Close help">×</button>
         </div>
-        <dl>
-          <div><dt>Run artwork</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>Enter</kbd></dd></div>
-          <div><dt>Indent selection</dt><dd><kbd>Tab</kbd></dd></div>
-          <div><dt>Save locally</dt><dd>Automatic</dd></div>
-        </dl>
+        <div class="help-content">
+          <figure class="help-screenshot">
+            <img src="/images/studio-overview.png" alt="Canvas Atelier showing a syntax-highlighted JavaScript lesson beside an animated canvas preview" />
+            <figcaption>The editor, live artwork, animation tools, and diagnostic console stay visible together.</figcaption>
+          </figure>
+
+          <section class="help-section" aria-labelledby="help-start-title">
+            <div class="section-heading">
+              <span class="section-number">01</span>
+              <div><h3 id="help-start-title">Your first five minutes</h3><p>Use the studio as a tight create–observe–debug loop.</p></div>
+            </div>
+            <ol class="help-steps">
+              <li><strong>Choose a lesson</strong><span>Start with the butterfly, kinetic fractal, or flight study.</span></li>
+              <li><strong>Change one value</strong><span>Try a hue, recursion depth, speed, or wing amplitude.</span></li>
+              <li><strong>Run and observe</strong><span>Auto-run waits briefly while you type; Run executes immediately.</span></li>
+              <li><strong>Read the console</strong><span>Logs, syntax errors, runtime errors, and rejected promises appear below the canvas.</span></li>
+            </ol>
+          </section>
+
+          <section class="help-section" aria-labelledby="help-work-title">
+            <div class="section-heading">
+              <span class="section-number">02</span>
+              <div><h3 id="help-work-title">How the studio works</h3><p>Your code is isolated, observable, and replaced cleanly on every run.</p></div>
+            </div>
+            <div class="help-flow" aria-label="Editor to sandbox to canvas and console flow">
+              <div><span>1</span><strong>CodeMirror editor</strong><small>Highlights and stores your JavaScript</small></div>
+              <i aria-hidden="true">→</i>
+              <div><span>2</span><strong>Sandbox runtime</strong><small>Starts a clean iframe execution</small></div>
+              <i aria-hidden="true">→</i>
+              <div><span>3</span><strong>Canvas + console</strong><small>Displays pixels and diagnostics</small></div>
+            </div>
+          </section>
+
+          <section class="help-section help-grid" aria-labelledby="help-tools-title">
+            <div>
+              <div class="section-heading compact">
+                <span class="section-number">03</span>
+                <div><h3 id="help-tools-title">Runtime tools</h3><p>Globals supplied to every lesson.</p></div>
+              </div>
+              <dl class="api-list">
+                <div><dt><code>canvas</code> / <code>ctx</code></dt><dd>Drawing surface and 2D context</dd></div>
+                <div><dt><code>width</code> / <code>height</code></dt><dd>Responsive CSS-pixel dimensions</dd></div>
+                <div><dt><code>onResize(fn)</code></dt><dd>Redraw after canvas resizing</dd></div>
+                <div><dt><code>createButton(label)</code></dt><dd>Add an artwork interaction</dd></div>
+              </dl>
+            </div>
+            <div>
+              <div class="section-heading compact">
+                <span class="section-number">04</span>
+                <div><h3>Shortcuts and controls</h3><p>Stay in the creative flow.</p></div>
+              </div>
+              <dl class="shortcut-list">
+                <div><dt>Run artwork</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>Enter</kbd></dd></div>
+                <div><dt>Indent selection</dt><dd><kbd>Tab</kbd></dd></div>
+                <div><dt>Find in code</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>F</kbd></dd></div>
+                <div><dt>Save locally</dt><dd>Automatic</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          <section class="help-tip">
+            <span>Performance principle</span>
+            <p>Animate from the timestamp passed to <code>requestAnimationFrame</code>. Keep recursive depth bounded and avoid creating expensive objects inside every frame when they can be reused.</p>
+          </section>
+        </div>
       </dialog>
     </div>
 

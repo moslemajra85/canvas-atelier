@@ -1,6 +1,6 @@
 import { EventBus } from "./src/core/EventBus.js";
 import { CodeEditor } from "./src/editor/CodeEditor.js";
-import { butterflyLesson } from "./src/lessons/butterfly.js";
+import { lessonCatalog } from "./src/lessons/index.js";
 import { PreviewRuntime } from "./src/runtime/PreviewRuntime.js";
 import { ConsoleStore } from "./src/services/ConsoleStore.js";
 import { ProjectStorage } from "./src/services/ProjectStorage.js";
@@ -9,6 +9,9 @@ import { StudioController } from "./src/ui/StudioController.js";
 const elements = {
   editorHost: document.querySelector("#codeEditor"),
   cursor: document.querySelector("#cursorPosition"),
+  projectName: document.querySelector("#projectName"),
+  fileName: document.querySelector("#fileName"),
+  lessonSelect: document.querySelector("#lessonSelect"),
   frame: document.querySelector("#previewFrame"),
   run: document.querySelector("#runButton"),
   refresh: document.querySelector("#refreshButton"),
@@ -31,20 +34,30 @@ const elements = {
   lessonTitle: document.querySelector("#lessonTitle"),
   lessonBody: document.querySelector("#lessonBody"),
   lessonClose: document.querySelector("#lessonClose"),
-  shortcuts: document.querySelector("#shortcutsDialog"),
-  shortcutsButton: document.querySelector("#shortcutsButton"),
-  closeShortcuts: document.querySelector("#closeShortcutsButton")
+  help: document.querySelector("#helpDialog"),
+  helpButton: document.querySelector("#helpButton"),
+  closeHelp: document.querySelector("#closeHelpButton")
 };
 
 const events = new EventBus();
 const storage = new ProjectStorage();
 const consoleStore = new ConsoleStore();
 const runtime = new PreviewRuntime({ frame: elements.frame, events });
+const initialLesson = lessonCatalog.get(
+  storage.loadActiveLesson(lessonCatalog.defaultLesson.id)
+);
+
+lessonCatalog.lessons.forEach(lesson => {
+  const option = document.createElement("option");
+  option.value = lesson.id;
+  option.textContent = lesson.title;
+  elements.lessonSelect.append(option);
+});
 
 let studio;
 const editor = new CodeEditor({
   parent: elements.editorHost,
-  source: storage.load(butterflyLesson.source),
+  source: storage.load(initialLesson.id, initialLesson.source),
   onChange: () => studio?.handleSourceChange(),
   onCursorChange: (position) => studio?.updateCursor(position),
   onRun: () => studio?.run()
@@ -56,7 +69,8 @@ studio = new StudioController({
   storage,
   consoleStore,
   events,
-  lesson: butterflyLesson,
+  lessonCatalog,
+  initialLesson,
   elements
 });
 

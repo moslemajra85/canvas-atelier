@@ -2,6 +2,8 @@
 
 Canvas Atelier is a browser-based creative-coding studio for learning generative art with JavaScript and the Canvas 2D API. It combines a focused code editor, an isolated live preview, a real error console, guided teaching notes, local persistence, and PNG export.
 
+[![Canvas Atelier kinetic fractal lesson](images/studio-overview.png)](images/studio-overview.png)
+
 The first lesson produces a bioluminescent fractal butterfly. It is intentionally more ambitious than a toy drawing: learners work with recursion, coordinate transforms, gradients, compositing, randomness, interaction, and responsive canvas rendering.
 
 ## Run the project
@@ -26,6 +28,8 @@ Create an optimized production build with `npm run build`; preview it with `npm 
 - Automatic local saving through `localStorage`.
 - CodeMirror 6 syntax highlighting, code folding, bracket matching, search, history, line numbers, and keyboard indentation.
 - First-class animation pause/resume and live frame-rate reporting.
+- Three selectable lessons with independent locally saved drafts.
+- An in-app handbook with a real interface screenshot, workflow guidance, runtime concepts, API reference, and shortcuts.
 - High-DPI canvas rendering and responsive resize helpers.
 - PNG export, fullscreen preview, restart, reset, and a starter lesson card.
 - Keyboard-accessible controls and reduced-motion support.
@@ -63,7 +67,17 @@ js-art/
 7. Use the down-arrow action to export the current canvas as a PNG.
 8. Use **Reset** to restore the lesson. Reset is destructive, so the app asks for confirmation.
 
-Your code is stored under the browser key `canvas-atelier:artwork`. This is convenience persistence, not cloud storage or version control. Clearing site data removes it.
+Each lesson draft is stored under `canvas-atelier:lesson:<lesson-id>`, and the current lesson is stored separately. This is convenience persistence, not cloud storage or version control. Clearing site data removes it.
+
+## Included lessons
+
+| Lesson | Main concepts | Performance lesson |
+| --- | --- | --- |
+| Bioluminescent butterfly | Symmetry, recursion, offscreen layers, transforms | Cache expensive static detail and animate the cached bitmap. |
+| Kinetic fractal bloom | Bounded recursion, additive color, rotation | Limit recursive depth and use absolute time. |
+| Flight study | Bézier curves, character deformation, parallax | Derive position and wing shape from elapsed time. |
+
+Open the **?** action for the full in-app handbook. The lesson selector keeps a separate editable draft for every lesson, so moving between exercises does not overwrite work.
 
 ## Runtime API available to artwork
 
@@ -170,7 +184,7 @@ Manual browser checks for this MVP:
 
 ## Current limitations
 
-- This is a single-file lesson workspace; there are no projects, accounts, cloud sync, or revision history.
+- This is a single-workspace lesson studio; there are no projects, accounts, cloud sync, or revision history.
 - The editor has syntax highlighting and structural editing, but not lint diagnostics, autocomplete, or inline error locations yet.
 - Code runs on the browser's main thread inside the preview. An accidental infinite loop can freeze the preview tab. A production execution service should add a Web Worker or instrumented runtime with time limits.
 - The console serialization is deliberately simple. Deep, circular, DOM, and function values are shown as simplified strings.
@@ -182,10 +196,10 @@ Manual browser checks for this MVP:
 Build in vertical slices rather than adding many disconnected controls:
 
 1. **Diagnostics:** add a JavaScript linter, inline error ranges, and safe autocomplete.
-2. **Lesson catalog:** add navigation, checkpoints, expected outcomes, and progress for multiple lesson modules.
+2. **Lesson progress:** add checkpoints, expected outcomes, completion state, and guided challenges to the lesson catalog.
 3. **Animation tools:** add elapsed time, deterministic random seeds, a timeline, and an animation cleanup API.
 4. **Project model:** support named sketches, autosave revisions, import/export, and a small gallery.
 5. **Teaching feedback:** detect concepts used in code and connect errors to short explanations without hiding the original browser message.
 6. **Production hardening:** add CSP, isolate long-running code, add accessibility/browser tests, and deploy immutable assets.
 
-The next milestone should be inline diagnostics plus the first three structured lessons. Those pieces improve learning value more than social or account features at this stage.
+The next milestone should be inline diagnostics and lesson checkpoints. Those pieces improve learning value more than social or account features at this stage.

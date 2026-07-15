@@ -2,14 +2,16 @@ const AUTO_RUN_DELAY = 650;
 const SAVE_DELAY = 350;
 
 export class StudioController {
-  constructor({ editor, runtime, storage, consoleStore, events, lesson, elements }) {
+  constructor({ editor, runtime, storage, consoleStore, events, lessonCatalog, initialLesson, elements }) {
     this.editor = editor;
     this.runtime = runtime;
     this.storage = storage;
     this.consoleStore = consoleStore;
     this.events = events;
-    this.lesson = lesson;
+    this.lessonCatalog = lessonCatalog;
+    this.currentLesson = initialLesson;
     this.elements = elements;
+    this.isSwitchingLesson = false;
     this.autoRunTimer = null;
     this.saveTimer = null;
     this.toastTimer = null;
@@ -18,14 +20,13 @@ export class StudioController {
   }
 
   start() {
-    this.elements.lessonKicker.textContent = this.lesson.note.kicker;
-    this.elements.lessonTitle.textContent = this.lesson.note.title;
-    this.elements.lessonBody.textContent = this.lesson.note.body;
+    this.updateLessonUi();
     this.renderConsole();
     this.run();
   }
 
   handleSourceChange() {
+    if (this.isSwitchingLesson) return;
     this.elements.dirty.classList.add("visible");
     this.elements.saved.textContent = "Saving…";
     window.clearTimeout(this.saveTimer);
@@ -42,7 +43,7 @@ export class StudioController {
   }
 
   save() {
-    const saved = this.storage.save(this.editor.getValue());
+    const saved = this.storage.save(this.currentLesson.id, this.editor.getValue());
     this.elements.dirty.classList.toggle("visible", !saved);
     this.elements.saved.textContent = saved ? "Saved locally" : "Local save unavailable";
   }
@@ -58,11 +59,13 @@ export class StudioController {
 
   reset() {
     const accepted = window.confirm(
-      "Reset the editor to the original animated butterfly lesson? Your current code will be replaced."
+      `Reset ${this.currentLesson.title} to its original lesson code? Your current code will be replaced.`
     );
     if (!accepted) return;
     window.clearTimeout(this.autoRunTimer);
-    this.editor.setValue(this.lesson.source);
+    this.isSwitchingLesson = true;
+    this.editor.setValue(this.currentLesson.source);
+    this.isSwitchingLesson = false;
     this.save();
     this.run();
     this.showToast("Starter artwork restored");
@@ -91,6 +94,7 @@ export class StudioController {
       this.renderConsole();
     });
     this.elements.animation.addEventListener("click", () => this.runtime.toggleAnimation());
+    this.elements.lessonSelect.addEventListener("change", event => this.switchLesson(event.target.value));
     this.elements.download.addEventListener("click", () => this.runtime.requestExport());
     this.elements.fullscreen.addEventListener("click", async () => {
       try {
@@ -100,8 +104,34 @@ export class StudioController {
       }
     });
     this.elements.lessonClose.addEventListener("click", () => this.elements.lesson.classList.add("hidden"));
-    this.elements.shortcutsButton.addEventListener("click", () => this.elements.shortcuts.showModal());
-    this.elements.closeShortcuts.addEventListener("click", () => this.elements.shortcuts.close());
+    this.elements.helpButton.addEventListener("click", () => this.elements.help.showModal());
+    this.elements.closeHelp.addEventListener("click", () => this.elements.help.close());
+  }
+
+  switchLesson(lessonId) {
+    this.save();
+    this.currentLesson = this.lessonCatalog.get(lessonId);
+    this.storage.saveActiveLesson(this.currentLesson.id);
+    window.clearTimeout(this.autoRunTimer);
+    window.clearTimeout(this.saveTimer);
+
+    this.isSwitchingLesson = true;
+    this.editor.setValue(
+      this.storage.load(this.currentLesson.id, this.currentLesson.source)
+    );
+    this.isSwitchingLesson = false;
+    this.updateLessonUi();
+    this.run();
+    this.editor.focus();
+  }
+
+  updateLessonUi() {
+    this.elements.lessonSelect.value = this.currentLesson.id;
+    this.elements.projectName.textContent = this.currentLesson.title;
+    this.elements.fileName.textContent = this.currentLesson.fileName;
+    this.elements.lessonKicker.textContent = this.currentLesson.note.kicker;
+    this.elements.lessonTitle.textContent = this.currentLesson.note.title;
+    this.elements.lessonBody.textContent = this.currentLesson.note.body;
   }
 
   setAnimationUi(paused) {

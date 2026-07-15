@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { EventBus } from "../src/core/EventBus.js";
 import { ConsoleStore } from "../src/services/ConsoleStore.js";
 import { ProjectStorage } from "../src/services/ProjectStorage.js";
+import { LessonCatalog } from "../src/lessons/index.js";
 
 test("EventBus publishes payloads and supports unsubscribe", () => {
   const events = new EventBus();
@@ -24,9 +25,9 @@ test("ProjectStorage loads and saves through the injected repository", () => {
   };
   const projects = new ProjectStorage(storage, "test-project");
 
-  assert.equal(projects.load("starter"), "starter");
-  assert.equal(projects.save("const art = true;"), true);
-  assert.equal(projects.load("starter"), "const art = true;");
+  assert.equal(projects.load("lesson-one", "starter"), "starter");
+  assert.equal(projects.save("lesson-one", "const art = true;"), true);
+  assert.equal(projects.load("lesson-one", "starter"), "const art = true;");
 });
 
 test("ProjectStorage fails safely when browser storage is unavailable", () => {
@@ -36,8 +37,21 @@ test("ProjectStorage fails safely when browser storage is unavailable", () => {
   };
   const projects = new ProjectStorage(unavailableStorage);
 
-  assert.equal(projects.load("fallback"), "fallback");
-  assert.equal(projects.save("source"), false);
+  assert.equal(projects.load("lesson-one", "fallback"), "fallback");
+  assert.equal(projects.save("lesson-one", "source"), false);
+});
+
+test("ProjectStorage remembers the active lesson independently", () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value)
+  };
+  const projects = new ProjectStorage(storage, "studio");
+
+  assert.equal(projects.loadActiveLesson("default"), "default");
+  projects.saveActiveLesson("flying-bird");
+  assert.equal(projects.loadActiveLesson("default"), "flying-bird");
 });
 
 test("ConsoleStore normalizes message levels and clears state", () => {
@@ -50,4 +64,13 @@ test("ConsoleStore normalizes message levels and clears state", () => {
 
   consoleStore.clear();
   assert.deepEqual(consoleStore.messages, []);
+});
+
+test("LessonCatalog resolves registered lessons and falls back safely", () => {
+  const first = { id: "first" };
+  const second = { id: "second" };
+  const catalog = new LessonCatalog([first, second]);
+
+  assert.equal(catalog.get("second"), second);
+  assert.equal(catalog.get("missing"), first);
 });
