@@ -8,12 +8,40 @@ export const butterflyLesson = {
     title: "Cache detail, animate transforms",
     body: "The recursive butterfly is rendered once to a layer. Each frame moves that layer instead of rebuilding hundreds of glowing paths."
   },
+  checkpoints: [
+    {
+      id: "tune-recursion",
+      title: "Tune the recursive depth",
+      description: "Change the butterfly's levels from 4 to either 3 or 5, then compare detail and frame rate.",
+      hint: "Look for this.levels in the Butterfly constructor. Keep it between 3 and 5 so the branch count remains safe.",
+      validate(source) {
+        const levels = Number(source.match(/this\.levels\s*=\s*(\d+)/)?.[1]);
+        return levels >= 3 && levels <= 5 && levels !== 4;
+      }
+    },
+    {
+      id: "add-palette",
+      title: "Introduce a color palette",
+      description: "Create a palette, hues, or colors array and use it as the starting point for a mutation.",
+      hint: "For example: const palette = [178, 205, 285]. Choose one entry before deriving the remaining HSL colors.",
+      validate(source) {
+        return /(?:palette|hues|colors)\s*=\s*\[[^\]]{3,}\]/i.test(source);
+      }
+    },
+    {
+      id: "review-butterfly",
+      title: "Review the composition",
+      description: "Confirm that the butterfly remains centered, readable, and responsive after your changes.",
+      hint: "Resize the preview and create several mutations. Look for clipping, white glowing blobs, or sudden layout jumps.",
+      manual: true
+    }
+  ],
   source: `// Lesson 01 — Cached Bioluminescent Butterfly
 // Expensive recursion is rendered once; animation moves the cached layer.
 
 class Butterfly {
   constructor() {
-    this.hue = Math.random() < 0.75 ? 178 + Math.random() * 35 : 285;
+    this.hue = random() < 0.75 ? 178 + random() * 35 : 285;
     this.levels = 4;
     this.branches = 3;
     this.spread = 0.46;
@@ -136,5 +164,5 @@ createButton("New mutation").addEventListener("click", () => {
 onResize(prepareArtwork);
 prepareArtwork();
 requestAnimationFrame(animate);
-console.info("Butterfly ready — recursive detail is cached for smooth motion.");`
+console.info(\`Butterfly ready — seed \${seed}; recursive detail is cached for smooth motion.\`);`
 };

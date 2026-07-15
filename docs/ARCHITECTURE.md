@@ -81,7 +81,7 @@ This Adapter owns iframe document construction, run identity, animation commands
 
 ### `src/services`
 
-`ProjectStorage` implements the Repository pattern around browser storage. `ConsoleStore` owns normalized diagnostic state. Both accept collaborators or inputs that make them testable without a browser UI.
+`ProjectStorage` implements the Repository pattern around browser storage. `ProjectFile` defines and validates the portable, versioned JSON boundary. `ConsoleStore` owns normalized diagnostic state. These services keep storage and serialization policy out of the UI controller and remain testable without a browser UI.
 
 ### `src/core/EventBus.js`
 
@@ -89,7 +89,33 @@ The small Observer implementation communicates runtime events without making the
 
 ### `src/lessons`
 
-Each lesson exports metadata and learner source. `LessonCatalog` indexes those definitions and provides a safe default. Adding another lesson is an additive change: create a module and register its object without editing sandbox internals. Each lesson receives an independent persisted draft.
+Each lesson exports metadata and learner source. `LessonCatalog` indexes those definitions and provides a safe default. Adding another guided lesson is an additive change: create a module and register its object without editing sandbox internals. Each lesson receives an independent persisted draft.
+
+Personal sketches are dynamic lesson-shaped workspaces. Their stored metadata identifies a base lesson and a creation-time starter source. At bootstrap, the composition root validates that base lesson, constructs a personal definition, and registers it with the same catalog. This lets editor, runtime, checkpoints, revision history, and reset behavior remain shared. The catalog supports runtime add/remove operations, while the three guided definitions remain immutable content.
+
+The standalone playground is a built-in checkpoint-free definition. It deliberately uses the same lesson-shaped contract so independent work does not fork the runtime or persistence architecture. The controller hides goal UI when the current definition has no checkpoints.
+
+### `src/library`
+
+`FractalCatalog` is the small generic index used by the fractal, particle, and image collections. Entries contain discovery metadata and a complete editable `source`. Reusable entries also provide a `snippet`, which the editor appends to the current project after creating a protected revision. The resulting component is normal project source, so it participates in saving, revision history, personal sketches, and portable project files without a second persistence format.
+
+The catalog is dynamically imported only when its dialog opens; large source strings therefore do not increase the initial editor bundle. Creating from a template produces a personal sketch based on the standalone playground, giving it an independent source, seed, reset baseline, revisions, and project-file identity.
+
+Library templates follow four constraints: deterministic supplied randomness, responsive redraw through `onResize`, bounded recursion/particle/pixel budgets, and no external network assets. Insertable snippets use an IIFE to avoid leaking local names into learner code.
+
+Particle snippets additionally share `globalThis.AtelierParticles`. The first inserted effect installs pointer tracking, a named-system registry, and one animation scheduler. Later effects reuse it; inserting the same preset again replaces its previous named system. This avoids a separate permanent animation loop per preset while keeping each preset readable and editable. Particle systems draw by `zIndex`; placing the whole particle scheduler behind unrelated user animation still requires manual composition-order changes.
+
+The particle configurator uses `buildPreviewDocument` to render generated source in a second sandboxed iframe. Preview messages are ignored by the primary runtime because its protocol validates the sending frame. Performance profiles scale the configured maximum and emission rate, while `zIndex` orders particle systems; the sorted system list is recomputed only when systems change.
+
+Custom presets are validated configuration records in `ProjectStorage`, bounded to 20 entries. Source code is regenerated through the same particle-entry factory used by built-ins. This avoids persisting duplicated engine strings while ensuring inserted effects remain ordinary, portable project source. Presets themselves are currently device-local and are not part of the project-file schema.
+
+### Built-in raster assets
+
+`AssetStore` owns an allow-list of project-bound image IDs and caches in-flight data-URL conversions. Learner code calls `loadImageAsset(id)` inside the opaque-origin sandbox. The preview sends an asset request through the existing run-scoped protocol; the studio validates the ID, fetches the same-origin file, enforces a 12 MB limit, converts it to a data URL, and returns it to the requesting run. Stale-run responses are discarded.
+
+This bridge solves two practical problems. Learner code cannot request arbitrary parent files through the API, and drawing the returned same-document data URL does not taint the canvas, so PNG export continues to work. The four initial textures carry origin and distribution-note metadata in the catalog. User-owned assets are intentionally not stored in `localStorage`; a future upload pipeline should use IndexedDB blobs and package referenced assets in project exports.
+
+Lessons also define ordered checkpoints. A checkpoint contains an ID, teaching copy, a hint, and either a small source validator or a `manual` flag for visual review. Validators are learning aids, not secure grading: they confirm an explicit code constraint while the learner remains responsible for judging the artwork.
 
 ### `src/ui/StudioController.js`
 
@@ -106,6 +132,8 @@ The controller coordinates run, reset, save, console rendering, animation state,
 - Global error and promise-rejection handlers.
 - High-DPI canvas sizing.
 - A controllable `requestAnimationFrame` scheduler and FPS reporter.
+- A persisted seed plus deterministic `random()` and `createRandom(seed)` helpers.
+- An asynchronous `loadImageAsset(id)` helper backed by the allow-listed studio bridge.
 - The learner-facing helper API.
 - Export request handling.
 - Learner code execution inside `try/catch`.
@@ -130,13 +158,18 @@ Current message types:
 | Direction | Type | Payload | Meaning |
 | --- | --- | --- | --- |
 | Preview → studio | `console` | `level`, `values` | Render a log or error row. |
+| Preview → studio | `diagnostic` | `message`, `stack`, `line`, `column` | Highlight and navigate to a learner-code failure. |
+| Preview → studio | `asset-request` | `assetId`, `requestId` | Request an allow-listed built-in image. |
 | Preview → studio | `ready` | none | Initial synchronous execution ended. |
 | Preview → studio | `export` | `dataUrl` | Download the encoded PNG. |
 | Preview → studio | `fps` | `fps` | Report executed learner animation callbacks. |
 | Studio → preview | `atelier-export` | none | Ask the preview to encode its canvas. |
 | Studio → preview | `atelier-animation-state` | `paused` | Pause or resume learner animation callbacks. |
+| Studio → preview | `atelier-asset-response` | `requestId`, `dataUrl` or `error` | Resolve an image request without tainting canvas export. |
 
 The studio validates `event.source`, the protocol `source`, and `runId`. An old frame may finish after a newer run has started; its messages must not contaminate the current console. A production version should also validate message payload schemas.
+
+Learner functions receive an `artwork.js` source label. Runtime stack locations are adjusted for the two wrapper lines inserted by the `Function` constructor, then forwarded as structured diagnostics. Compile-time syntax errors do not consistently include a source location across browsers, so CodeMirror's syntax tree supplies an editor location when available. Console rows with locations are mouse- and keyboard-navigable.
 
 ## Animation scheduling
 
@@ -187,8 +220,28 @@ The current state is deliberately small:
 - Save timer.
 - Current console messages.
 - Current run ID.
+- Current checkpoint and completed checkpoint IDs.
+- Unsnapshotted-change state and revision timer.
+- Personal sketch metadata and the active dynamic workspace ID.
+- Current workspace seed.
 
-Only editor text persists, using `localStorage`. UI preferences and console history do not. This prevents stale diagnostics and makes every browser load begin with a current execution.
+Editor text, completed checkpoint IDs, and revision history persist using separate `localStorage` keys. UI preferences, the currently displayed checkpoint, and console history do not. Keeping progress separate means resetting code does not erase completed learning work, while every browser load still begins with a current execution.
+
+Revision history is intentionally bounded and local. After five seconds without another edit, the controller stores a snapshot unless the newest revision already has identical source. Reset, restore, and a quick lesson switch capture unsnapshotted work first. Each lesson retains its 15 newest distinct revisions; this provides recovery without pretending to be source control or cloud backup.
+
+Personal sketch metadata is also bounded to 30 entries. Deleting a sketch removes its draft, checkpoint progress, and revisions together. When the deleted sketch is active, the controller switches to its base lesson before removing storage so normal lesson-switch saving cannot recreate deleted data.
+
+## Project-file boundary
+
+Canvas Atelier exports one lesson workspace as a versioned `.atelier.json` document. Version 1 contains the schema identifier, format version, export time, lesson identity, current source, deterministic seed, completed checkpoint IDs, and at most 15 revisions. Local revision IDs are omitted from the file because they have meaning only inside the originating browser.
+
+## Deterministic randomness
+
+Every workspace owns a persisted string seed. The runtime hashes that seed into a small stateful pseudo-random generator and exposes it as `random()`. `createRandom(customSeed)` creates an independent sequence, which is useful when separate artwork systems must remain stable even if another system consumes additional values. The studio does not replace `Math.random()`; using it remains an explicit choice to produce nondeterministic output.
+
+Rerunning source resets `random()` to the beginning of the current seed's sequence. Generating a new seed persists it and starts a clean run. Personal sketches copy their source workspace's seed at creation, project files carry it between browsers, and exported filenames include it so a rendered artifact can be traced back to its variation. Determinism covers code using the supplied generators; timestamps, browser dimensions, fonts, external assets, and native `Math.random()` can still change pixels.
+
+Import is a validation boundary. Files above 1 MB, malformed JSON, unknown schemas, unsupported versions, missing source, and unavailable base lessons are rejected before the target draft changes. Checkpoint IDs are intersected with the installed lesson, malformed revisions are dropped, and the existing target draft is snapshotted before an accepted import. A personal sketch whose local ID is unknown can be recreated with a new local ID when its base lesson is installed. The format is portable recovery data, not an executable package installer; imported JavaScript still runs through the normal sandbox runtime.
 
 Saving is debounced by `350 ms`. Execution is debounced separately by `650 ms`. These timers solve different problems: reducing storage writes and preventing expensive redraws during typing.
 
@@ -196,13 +249,13 @@ Saving is debounced by `350 ms`. Execution is debounced separately by `650 ms`. 
 
 | Failure | Current behavior | Future improvement |
 | --- | --- | --- |
-| Syntax error | Caught by `new Function`; shown in red. | Parse before run and highlight the exact range. |
-| Synchronous runtime error | Caught and reported. | Map stack locations back to editor lines. |
-| Async error | Global error/rejection handler reports it. | Preserve richer structured stack data. |
+| Syntax error | Caught by `new Function`; syntax-tree line is highlighted when available. | Add precise lint ranges and educational explanations. |
+| Synchronous runtime error | Caught, mapped to learner source, and made navigable. | Preserve structured stack frames across browsers. |
+| Async error | Global error/rejection handler reports and maps it when a learner stack frame exists. | Group repeated animation errors. |
 | Infinite loop | Browser tab can become unresponsive. | Worker execution or instrumentation with a time budget. |
 | Circular console value | Converted to a string. | Interactive object inspector with depth limits. |
 | Canvas export after cross-origin image | Browser throws a security error. | Explain CORS and offer asset proxy rules. |
-| Storage unavailable | Session works; saving label reports failure. | In-memory fallback and exportable project file. |
+| Storage unavailable | Session works; saving label reports failure and revisions cannot persist. | In-memory fallback and exportable project file. |
 
 ## Testing strategy
 

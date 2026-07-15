@@ -7,7 +7,7 @@ export class ConsoleStore {
     return [...this.#messages];
   }
 
-  add(level, values, date = new Date()) {
+  add(level, values, date = new Date(), location = null) {
     this.#messages.push({
       level: KNOWN_LEVELS.has(level) ? level : "log",
       values,
@@ -15,7 +15,8 @@ export class ConsoleStore {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
-      })
+      }),
+      location
     });
   }
 

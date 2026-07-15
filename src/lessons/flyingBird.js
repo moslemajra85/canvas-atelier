@@ -8,6 +8,34 @@ export const flyingBirdLesson = {
     title: "Animate from elapsed time",
     body: "The bird position and wing shape come from time, so motion stays consistent at 30, 60, or 144 frames per second."
   },
+  checkpoints: [
+    {
+      id: "retune-flap",
+      title: "Retune the wing beat",
+      description: "Change the starter wing frequency of 0.009 while keeping the motion time-based.",
+      hint: "Find Math.sin(time * 0.009). Smaller values flap more slowly; try 0.006 before making larger changes.",
+      validate(source) {
+        const frequency = Number(source.match(/const\s+flap\s*=\s*Math\.sin\(time\s*\*\s*([\d.]+)/)?.[1]);
+        return frequency > 0 && frequency <= 0.03 && frequency !== 0.009;
+      }
+    },
+    {
+      id: "recolor-sky",
+      title: "Design a new sky palette",
+      description: "Replace at least one of the starter sky gradient colors with your own color.",
+      hint: "Edit #071527 or #df7c63 in drawSky. Preserve enough contrast for the pale bird to remain visible.",
+      validate(source) {
+        return !source.includes("#071527") || !source.includes("#df7c63");
+      }
+    },
+    {
+      id: "review-flight",
+      title: "Review the complete flight",
+      description: "Confirm that the bird crosses the canvas smoothly and remains readable against the sky.",
+      hint: "Watch a complete pass and resize the preview. Check the entry edge, exit edge, vertical motion, and contrast.",
+      manual: true
+    }
+  ],
   source: `// Lesson 03 — Flight Study
 // A bird made from Bézier curves follows a time-based flight path.
 

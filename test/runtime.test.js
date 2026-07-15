@@ -1,14 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPreviewDocument } from "../src/runtime/PreviewRuntime.js";
+import { buildPreviewDocument, extractArtworkLocation } from "../src/runtime/PreviewRuntime.js";
 
 test("preview document contains the run identity and runtime helpers", () => {
-  const document = buildPreviewDocument("ctx.fillRect(0, 0, 10, 10);", 42);
+  const document = buildPreviewDocument("ctx.fillRect(0, 0, 10, 10);", 42, "c0ffee42");
 
   assert.match(document, /const RUN_ID = 42/);
   assert.match(document, /function onResize/);
   assert.match(document, /window\.requestAnimationFrame/);
   assert.match(document, /atelier-animation-state/);
+  assert.match(document, /sourceURL=artwork\.js/);
+  assert.match(document, /send\("diagnostic"/);
+  assert.match(document, /const seed = "c0ffee42"/);
+  assert.match(document, /const random = createRandom\(seed\)/);
+  assert.match(document, /function loadImageAsset/);
+  assert.match(document, /atelier-asset-response/);
 });
 
 test("preview document escapes a learner closing-script sequence", () => {
@@ -16,4 +22,12 @@ test("preview document escapes a learner closing-script sequence", () => {
 
   assert.doesNotMatch(document, /console\.log\("<\/script>/);
   assert.match(document, /<\\\/script>/);
+});
+
+test("artwork stack locations map past the generated Function wrapper", () => {
+  assert.deepEqual(extractArtworkLocation("Error: boom\n at draw (artwork.js:14:9)"), {
+    line: 12,
+    column: 9
+  });
+  assert.equal(extractArtworkLocation("Error without a learner frame"), null);
 });

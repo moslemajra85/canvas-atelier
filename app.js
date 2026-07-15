@@ -1,10 +1,12 @@
 import { EventBus } from "./src/core/EventBus.js";
 import { CodeEditor } from "./src/editor/CodeEditor.js";
-import { lessonCatalog } from "./src/lessons/index.js";
+import { createPersonalSketchDefinition, lessonCatalog } from "./src/lessons/index.js";
 import { PreviewRuntime } from "./src/runtime/PreviewRuntime.js";
 import { ConsoleStore } from "./src/services/ConsoleStore.js";
 import { ProjectStorage } from "./src/services/ProjectStorage.js";
 import { StudioController } from "./src/ui/StudioController.js";
+import { AssetStore } from "./src/services/AssetStore.js";
+import { builtInAssets } from "./src/services/builtinAssets.js";
 
 const elements = {
   editorHost: document.querySelector("#codeEditor"),
@@ -25,15 +27,73 @@ const elements = {
   running: document.querySelector("#runningIndicator"),
   animation: document.querySelector("#animationButton"),
   fps: document.querySelector("#fpsLabel"),
+  seed: document.querySelector("#seedLabel"),
+  seedButton: document.querySelector("#seedButton"),
   download: document.querySelector("#downloadButton"),
   fullscreen: document.querySelector("#fullscreenButton"),
   canvasStage: document.querySelector("#canvasStage"),
   toast: document.querySelector("#toast"),
+  libraryButton: document.querySelector("#libraryButton"),
+  libraryDialog: document.querySelector("#libraryDialog"),
+  closeLibrary: document.querySelector("#closeLibraryButton"),
+  libraryType: document.querySelector("#libraryType"),
+  libraryCategory: document.querySelector("#libraryCategory"),
+  libraryCount: document.querySelector("#libraryCount"),
+  libraryList: document.querySelector("#libraryList"),
+  particleBuilderDialog: document.querySelector("#particleBuilderDialog"),
+  closeParticleBuilder: document.querySelector("#closeParticleBuilderButton"),
+  particleBuilderTitle: document.querySelector("#particleBuilderTitle"),
+  particleBuilderPreview: document.querySelector("#particleBuilderPreview"),
+  particleBuilderForm: document.querySelector("#particleBuilderForm"),
+  particlePresetName: document.querySelector("#particlePresetName"),
+  particleQuality: document.querySelector("#particleQuality"),
+  particleZIndex: document.querySelector("#particleZIndex"),
+  particleMax: document.querySelector("#particleMax"),
+  particleRate: document.querySelector("#particleRate"),
+  particleGravity: document.querySelector("#particleGravity"),
+  particleWind: document.querySelector("#particleWind"),
+  particleSizeMin: document.querySelector("#particleSizeMin"),
+  particleSizeMax: document.querySelector("#particleSizeMax"),
+  particleOpacity: document.querySelector("#particleOpacity"),
+  particleShape: document.querySelector("#particleShape"),
+  particleBlend: document.querySelector("#particleBlend"),
+  particleColors: document.querySelector("#particleColors"),
+  particleBudget: document.querySelector("#particleBudgetLabel"),
+  particleGeneratedCode: document.querySelector("#particleGeneratedCode"),
+  saveParticlePreset: document.querySelector("#saveParticlePresetButton"),
+  galleryButton: document.querySelector("#galleryButton"),
+  galleryDialog: document.querySelector("#galleryDialog"),
+  closeGallery: document.querySelector("#closeGalleryButton"),
+  createSketch: document.querySelector("#createSketchButton"),
+  galleryList: document.querySelector("#galleryList"),
+  historyButton: document.querySelector("#historyButton"),
+  revisionDialog: document.querySelector("#revisionDialog"),
+  closeRevision: document.querySelector("#closeRevisionButton"),
+  saveRevision: document.querySelector("#saveRevisionButton"),
+  importProject: document.querySelector("#importProjectButton"),
+  exportProject: document.querySelector("#exportProjectButton"),
+  projectFileInput: document.querySelector("#projectFileInput"),
+  revisionLessonName: document.querySelector("#revisionLessonName"),
+  revisionList: document.querySelector("#revisionList"),
   lesson: document.querySelector("#lessonCard"),
+  goals: document.querySelector("#goalsButton"),
+  goalsCount: document.querySelector("#goalsCount"),
   lessonKicker: document.querySelector("#lessonKicker"),
   lessonTitle: document.querySelector("#lessonTitle"),
   lessonBody: document.querySelector("#lessonBody"),
   lessonClose: document.querySelector("#lessonClose"),
+  checkpointPosition: document.querySelector("#checkpointPosition"),
+  checkpointStatus: document.querySelector("#checkpointStatus"),
+  checkpointTitle: document.querySelector("#checkpointTitle"),
+  checkpointDescription: document.querySelector("#checkpointDescription"),
+  checkpointHint: document.querySelector("#checkpointHint"),
+  checkpointAction: document.querySelector("#checkpointAction"),
+  checkpointHintButton: document.querySelector("#checkpointHintButton"),
+  checkpointPrevious: document.querySelector("#previousCheckpoint"),
+  checkpointNext: document.querySelector("#nextCheckpoint"),
+  checkpointProgressLabel: document.querySelector("#checkpointProgressLabel"),
+  lessonProgress: document.querySelector(".lesson-progress"),
+  lessonProgressBar: document.querySelector("#lessonProgressBar"),
   help: document.querySelector("#helpDialog"),
   helpButton: document.querySelector("#helpButton"),
   closeHelp: document.querySelector("#closeHelpButton")
@@ -41,18 +101,38 @@ const elements = {
 
 const events = new EventBus();
 const storage = new ProjectStorage();
+storage.loadSketches().forEach(sketch => {
+  if (!lessonCatalog.has(sketch.baseLessonId)) return;
+  lessonCatalog.add(createPersonalSketchDefinition(
+    sketch,
+    lessonCatalog.get(sketch.baseLessonId)
+  ));
+});
 const consoleStore = new ConsoleStore();
-const runtime = new PreviewRuntime({ frame: elements.frame, events });
+const assets = new AssetStore(builtInAssets);
+const runtime = new PreviewRuntime({ frame: elements.frame, events, assets });
 const initialLesson = lessonCatalog.get(
   storage.loadActiveLesson(lessonCatalog.defaultLesson.id)
 );
+
+const lessonOptions = document.createElement("optgroup");
+lessonOptions.label = "Guided lessons";
+const playgroundOptions = document.createElement("optgroup");
+playgroundOptions.label = "Independent work";
+const sketchOptions = document.createElement("optgroup");
+sketchOptions.label = "My sketches";
+elements.sketchOptions = sketchOptions;
 
 lessonCatalog.lessons.forEach(lesson => {
   const option = document.createElement("option");
   option.value = lesson.id;
   option.textContent = lesson.title;
-  elements.lessonSelect.append(option);
+  const group = lesson.kind === "sketch"
+    ? sketchOptions
+    : lesson.kind === "playground" ? playgroundOptions : lessonOptions;
+  group.append(option);
 });
+elements.lessonSelect.append(lessonOptions, playgroundOptions, sketchOptions);
 
 let studio;
 const editor = new CodeEditor({

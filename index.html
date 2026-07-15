@@ -33,6 +33,9 @@
 
         <nav class="top-actions" aria-label="Project actions">
           <button class="icon-button" id="helpButton" type="button" title="Help and guide" aria-label="Open help and guide">?</button>
+          <button class="icon-button" id="libraryButton" type="button" title="Creative library" aria-label="Open creative component library">◈</button>
+          <button class="icon-button" id="galleryButton" type="button" title="My sketches" aria-label="Open personal sketch gallery">▦</button>
+          <button class="icon-button" id="historyButton" type="button" title="Revision history" aria-label="Open revision history">↶</button>
           <button class="button button-ghost" id="resetButton" type="button">Reset</button>
           <button class="button button-primary" id="runButton" type="button">
             <span class="play-icon" aria-hidden="true"></span>
@@ -51,6 +54,9 @@
               <span class="dirty-indicator" id="dirtyIndicator" aria-label="Unsaved changes"></span>
             </div>
             <div class="editor-meta">
+              <button class="goals-button" id="goalsButton" type="button" aria-controls="lessonCard" aria-expanded="true">
+                Goals <span id="goalsCount">0/0</span>
+              </button>
               <label class="lesson-picker" for="lessonSelect">
                 <span>Lesson</span>
                 <select id="lessonSelect" aria-label="Choose a creative coding lesson"></select>
@@ -81,6 +87,9 @@
               <span class="live-dot" aria-hidden="true"></span>
               Live canvas
               <span class="fps-label" id="fpsLabel">— fps</span>
+              <button class="seed-button" id="seedButton" type="button" title="Generate a new seed">
+                <span id="seedLabel">Seed —</span> ↝
+              </button>
             </div>
             <div class="preview-actions">
               <button class="icon-action animation-button" id="animationButton" type="button" title="Pause animation" aria-label="Pause animation">
@@ -122,10 +131,143 @@
         <div class="lesson-kicker" id="lessonKicker">Creative coding note · 01</div>
         <h2 id="lessonTitle">Recursion draws the wings</h2>
         <p id="lessonBody">Recursion builds the structure; time-based transforms bring it to life.</p>
-        <div class="lesson-progress"><span></span></div>
+        <section class="checkpoint" aria-live="polite">
+          <div class="checkpoint-heading">
+            <span id="checkpointPosition">Challenge 1 of 3</span>
+            <span class="checkpoint-status" id="checkpointStatus">In progress</span>
+          </div>
+          <h3 id="checkpointTitle"></h3>
+          <p id="checkpointDescription"></p>
+          <p class="checkpoint-hint hidden" id="checkpointHint"></p>
+          <div class="checkpoint-actions">
+            <button class="checkpoint-action" id="checkpointAction" type="button">Check code</button>
+            <button class="checkpoint-hint-button" id="checkpointHintButton" type="button" aria-expanded="false">Show hint</button>
+          </div>
+          <div class="checkpoint-navigation">
+            <button id="previousCheckpoint" type="button" aria-label="Previous challenge">←</button>
+            <span id="checkpointProgressLabel">0 of 3 complete</span>
+            <button id="nextCheckpoint" type="button" aria-label="Next challenge">→</button>
+          </div>
+        </section>
+        <div class="lesson-progress" role="progressbar" aria-label="Lesson progress" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0">
+          <span id="lessonProgressBar"></span>
+        </div>
       </aside>
 
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+      <dialog class="revision-dialog" id="revisionDialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">Local revision history</span>
+            <h2>Restore an earlier version</h2>
+            <p>Canvas Atelier keeps the latest 15 distinct revisions for each lesson on this device.</p>
+          </div>
+          <button class="icon-button" id="closeRevisionButton" type="button" aria-label="Close revision history">×</button>
+        </div>
+        <div class="revision-content">
+          <div class="revision-toolbar">
+            <p id="revisionLessonName"></p>
+            <div class="revision-actions">
+              <button id="importProjectButton" type="button">Import</button>
+              <button id="exportProjectButton" type="button">Export</button>
+              <button class="checkpoint-action" id="saveRevisionButton" type="button">Save version</button>
+              <input id="projectFileInput" type="file" accept=".json,.atelier.json,application/json" hidden />
+            </div>
+          </div>
+          <div class="revision-list" id="revisionList"></div>
+        </div>
+      </dialog>
+
+      <dialog class="gallery-dialog" id="galleryDialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">Personal workspaces</span>
+            <h2>My sketches</h2>
+            <p>Duplicate the current artwork, then experiment without changing its original lesson draft.</p>
+          </div>
+          <button class="icon-button" id="closeGalleryButton" type="button" aria-label="Close sketch gallery">×</button>
+        </div>
+        <div class="gallery-content">
+          <div class="gallery-toolbar">
+            <span>Stored locally on this device</span>
+            <button class="checkpoint-action" id="createSketchButton" type="button">Duplicate current artwork</button>
+          </div>
+          <div class="gallery-list" id="galleryList"></div>
+        </div>
+      </dialog>
+
+      <dialog class="library-dialog" id="libraryDialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">Reusable creative components</span>
+            <h2>Creative library</h2>
+            <p>Create a new sketch, or add compatible fractals and particle effects directly to your current code.</p>
+          </div>
+          <button class="icon-button" id="closeLibraryButton" type="button" aria-label="Close creative library">×</button>
+        </div>
+        <div class="library-content">
+          <div class="library-toolbar">
+            <label for="libraryType">Library</label>
+            <select id="libraryType">
+              <option value="fractals">Fractal shapes</option>
+              <option value="particles">Particle effects</option>
+              <option value="images">Image textures</option>
+            </select>
+            <label for="libraryCategory">Category</label>
+            <select id="libraryCategory"><option value="all">All categories</option></select>
+            <span id="libraryCount"></span>
+          </div>
+          <div class="library-list" id="libraryList"></div>
+        </div>
+      </dialog>
+
+      <dialog class="particle-builder-dialog" id="particleBuilderDialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">Visual particle configurator</span>
+            <h2 id="particleBuilderTitle">Customize particle effect</h2>
+            <p>Adjust a production-minded subset of parameters, preview it safely, then insert or save the preset.</p>
+          </div>
+          <button class="icon-button" id="closeParticleBuilderButton" type="button" aria-label="Close particle configurator">×</button>
+        </div>
+        <div class="particle-builder-content">
+          <div class="particle-builder-preview">
+            <iframe id="particleBuilderPreview" title="Customized particle effect preview" sandbox="allow-scripts"></iframe>
+            <span id="particleBudgetLabel">Estimated budget</span>
+          </div>
+          <form class="particle-builder-form" id="particleBuilderForm">
+            <label class="wide">Preset name<input id="particlePresetName" maxlength="60" required /></label>
+            <label>Performance
+              <select id="particleQuality">
+                <option value="0.5">Draft · 50%</option>
+                <option value="1" selected>Balanced · 100%</option>
+                <option value="1.5">High · 150%</option>
+              </select>
+            </label>
+            <label>Particle layer<input id="particleZIndex" type="number" min="-20" max="20" step="1" /></label>
+            <label>Maximum particles<input id="particleMax" type="number" min="10" max="1200" step="10" /></label>
+            <label>Emission / second<input id="particleRate" type="number" min="1" max="400" step="1" /></label>
+            <label>Gravity<input id="particleGravity" type="number" min="-500" max="500" step="1" /></label>
+            <label>Wind<input id="particleWind" type="number" min="-300" max="300" step="1" /></label>
+            <label>Minimum size<input id="particleSizeMin" type="number" min="0.2" max="60" step="0.1" /></label>
+            <label>Maximum size<input id="particleSizeMax" type="number" min="0.2" max="80" step="0.1" /></label>
+            <label>Opacity<input id="particleOpacity" type="range" min="0.05" max="1" step="0.05" /></label>
+            <label>Shape
+              <select id="particleShape"><option value="circle">Circle</option><option value="line">Streak</option><option value="square">Rectangle</option></select>
+            </label>
+            <label>Blend mode
+              <select id="particleBlend"><option value="source-over">Normal</option><option value="lighter">Additive glow</option><option value="screen">Screen</option></select>
+            </label>
+            <label class="wide">Colors · comma-separated hex<input id="particleColors" spellcheck="false" placeholder="#ffffff, #61d8ff" /></label>
+            <details class="particle-code wide"><summary>Generated component code</summary><textarea id="particleGeneratedCode" readonly spellcheck="false"></textarea></details>
+            <div class="particle-builder-actions wide">
+              <button id="saveParticlePresetButton" type="button">Save to my presets</button>
+              <button class="checkpoint-action" id="insertConfiguredParticleButton" type="submit">Add to current code</button>
+            </div>
+          </form>
+        </div>
+      </dialog>
 
       <dialog class="help-dialog" id="helpDialog">
         <div class="dialog-heading help-heading">
@@ -180,6 +322,9 @@
                 <div><dt><code>width</code> / <code>height</code></dt><dd>Responsive CSS-pixel dimensions</dd></div>
                 <div><dt><code>onResize(fn)</code></dt><dd>Redraw after canvas resizing</dd></div>
                 <div><dt><code>createButton(label)</code></dt><dd>Add an artwork interaction</dd></div>
+                <div><dt><code>seed</code> / <code>random()</code></dt><dd>Reproducible workspace variation</dd></div>
+                <div><dt><code>createRandom(seed)</code></dt><dd>Independent seeded sequence</dd></div>
+                <div><dt><code>loadImageAsset(id)</code></dt><dd>Load an export-safe built-in image</dd></div>
               </dl>
             </div>
             <div>
@@ -192,6 +337,7 @@
                 <div><dt>Indent selection</dt><dd><kbd>Tab</kbd></dd></div>
                 <div><dt>Find in code</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>F</kbd></dd></div>
                 <div><dt>Save locally</dt><dd>Automatic</dd></div>
+                <div><dt>New variation</dt><dd>Press the seed above the preview</dd></div>
               </dl>
             </div>
           </section>

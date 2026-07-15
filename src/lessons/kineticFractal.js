@@ -8,6 +8,35 @@ export const kineticFractalLesson = {
     title: "Bound the work per frame",
     body: "Five recursive levels create detail while absolute time keeps rotation equally smooth on different displays."
   },
+  checkpoints: [
+    {
+      id: "change-arms",
+      title: "Change the bloom symmetry",
+      description: "Set ARMS to a value from 3 to 8 other than the starter value of 5.",
+      hint: "ARMS controls how many rotated copies of the recursive branch are drawn. Higher values multiply the work per frame.",
+      validate(source) {
+        const arms = Number(source.match(/const\s+ARMS\s*=\s*(\d+)/)?.[1]);
+        return arms >= 3 && arms <= 8 && arms !== 5;
+      }
+    },
+    {
+      id: "change-speed",
+      title: "Retune time-based motion",
+      description: "Change SPEED while keeping it positive and no greater than 0.002.",
+      hint: "Try a small value such as 0.00035. The timestamp is in milliseconds, so small constants create visible motion.",
+      validate(source) {
+        const speed = Number(source.match(/const\s+SPEED\s*=\s*([\d.]+)/)?.[1]);
+        return speed > 0 && speed <= 0.002 && speed !== 0.00022;
+      }
+    },
+    {
+      id: "review-performance",
+      title: "Review animation performance",
+      description: "Watch the FPS display and confirm that the bloom remains smooth after your changes.",
+      hint: "If performance drops, reduce DEPTH or ARMS. Recursion grows the number of branches exponentially.",
+      manual: true
+    }
+  ],
   source: `// Lesson 02 — Kinetic Fractal Bloom
 // Change ARMS, DEPTH, or SPEED, then watch the FPS indicator.
 
