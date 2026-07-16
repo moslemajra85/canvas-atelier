@@ -16,6 +16,28 @@ import {
   lineNumbers
 } from "@codemirror/view";
 import { syntaxHighlighting } from "@codemirror/language";
+import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
+
+export const runtimeCompletions = [
+  { label: "canvas", type: "variable", detail: "Artwork OffscreenCanvas" },
+  { label: "ctx", type: "variable", detail: "CanvasRenderingContext2D" },
+  { label: "width", type: "variable", detail: "Current CSS-pixel width" },
+  { label: "height", type: "variable", detail: "Current CSS-pixel height" },
+  { label: "seed", type: "variable", detail: "Persisted project seed" },
+  { label: "random", type: "function", detail: "Deterministic random number" },
+  { label: "createRandom", type: "function", detail: "Create a seeded generator" },
+  { label: "onResize", type: "function", detail: "Register responsive redraw" },
+  { label: "fitCanvas", type: "function", detail: "Resize canvas backing store" },
+  { label: "createButton", type: "function", detail: "Add an artwork control" },
+  { label: "loadImageAsset", type: "function", detail: "Load a portable image" },
+  { label: "requestAnimationFrame", type: "function", detail: "Schedule animation" }
+];
+
+function runtimeCompletionSource(context) {
+  const word = context.matchBefore(/[\w$]*/);
+  if (!word || (word.from === word.to && !context.explicit)) return null;
+  return { from: word.from, options: runtimeCompletions };
+}
 
 const setDiagnosticsEffect = StateEffect.define();
 const diagnosticField = StateField.define({
@@ -58,9 +80,10 @@ export class CodeEditor {
           highlightActiveLine(),
           syntaxHighlighting(oneDarkHighlightStyle),
           javascript(),
+          autocompletion({ override: [runtimeCompletionSource] }),
           diagnosticField,
           EditorState.tabSize.of(2),
-          keymap.of([runKey, indentWithTab, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+          keymap.of([runKey, indentWithTab, ...completionKeymap, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) onChange(update.state.doc.toString());
             if (update.docChanged || update.selectionSet) {
@@ -119,6 +142,10 @@ export class CodeEditor {
     return diagnostics;
   }
 
+  getDiagnostics() {
+    return [...this.getSyntaxDiagnostics(), ...semanticDiagnostics(this.getValue())];
+  }
+
   setDiagnostics(diagnostics) {
     const { doc } = this.view.state;
     const decorations = diagnostics.flatMap(diagnostic => {
@@ -153,4 +180,17 @@ export class CodeEditor {
   destroy() {
     this.view.destroy();
   }
+}
+
+export function semanticDiagnostics(source) {
+  const rules = [
+    { pattern: /\bMath\.random\s*\(/, message: "Use random() or createRandom(seed) to keep artwork reproducible." },
+    { pattern: /\bwhile\s*\(\s*true\s*\)/, message: "An unconditional loop will be stopped by the execution watchdog." },
+    { pattern: /\bdocument\.(querySelector|getElementById|body)\b/, message: "Artwork runs in a Worker; use canvas, ctx, or createButton() instead of DOM access." },
+    { pattern: /\b(localStorage|sessionStorage)\b/, message: "Browser storage is unavailable inside artwork Workers; project persistence is managed by the studio." }
+  ];
+  return source.split("\n").flatMap((line, index) => rules.flatMap(rule => {
+    const match = line.match(rule.pattern);
+    return match ? [{ line: index + 1, column: match.index + 1, severity: "warning", message: rule.message }] : [];
+  }));
 }

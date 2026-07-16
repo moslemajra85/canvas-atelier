@@ -1,4 +1,4 @@
-import { textureAssets } from "./assets.js";
+import { createUserImageEntry, textureAssets } from "./assets.js";
 import { extendedFractalEntries } from "./extendedFractals.js";
 import { createParticleEntry, particleEntries } from "./particles.js";
 
@@ -439,4 +439,4 @@ console.info("Fractal noise map ready — seed", seed);`
 
 export const imageCatalog = new FractalCatalog(textureAssets);
 export const particleCatalog = new FractalCatalog(particleEntries);
-export { createParticleEntry, textureAssets };
+export { createParticleEntry, createUserImageEntry, textureAssets };

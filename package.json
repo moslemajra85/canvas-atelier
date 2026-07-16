@@ -1,6 +1,6 @@
 {
   "name": "canvas-atelier",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "A browser-based creative-coding studio for learning generative art with JavaScript.",
@@ -11,6 +11,7 @@
     "check": "node --test"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.8.1",
     "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/language": "^6.11.2",

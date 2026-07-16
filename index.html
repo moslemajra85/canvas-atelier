@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:; frame-src 'self' blob:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
@@ -9,15 +10,10 @@
     />
     <title>Canvas Atelier — JavaScript Creative Coding Studio</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23090a0d'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23d8ff42'/%3E%3C/svg%3E" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#codeEditor">Skip to code editor</a>
     <div class="app-shell">
       <header class="topbar">
         <a class="brand" href="#" aria-label="Canvas Atelier home">
@@ -34,6 +30,7 @@
         <nav class="top-actions" aria-label="Project actions">
           <button class="icon-button" id="helpButton" type="button" title="Help and guide" aria-label="Open help and guide">?</button>
           <button class="icon-button" id="libraryButton" type="button" title="Creative library" aria-label="Open creative component library">◈</button>
+          <button class="icon-button" id="layersButton" type="button" title="Composition layers" aria-label="Open composition layers">☷</button>
           <button class="icon-button" id="galleryButton" type="button" title="My sketches" aria-label="Open personal sketch gallery">▦</button>
           <button class="icon-button" id="historyButton" type="button" title="Revision history" aria-label="Open revision history">↶</button>
           <button class="button button-ghost" id="resetButton" type="button">Reset</button>
@@ -70,7 +67,7 @@
           </div>
 
           <div class="editor-wrap" id="editorWrap">
-            <div id="codeEditor" aria-label="JavaScript source code"></div>
+            <div id="codeEditor" tabindex="-1" aria-label="JavaScript source code"></div>
           </div>
 
           <footer class="editor-statusbar">
@@ -95,8 +92,9 @@
               <button class="icon-action animation-button" id="animationButton" type="button" title="Pause animation" aria-label="Pause animation">
                 <span class="pause-icon" aria-hidden="true"></span>
               </button>
+              <button class="icon-action stop-button" id="stopButton" type="button" title="Stop artwork" aria-label="Stop artwork">■</button>
               <button class="icon-action" id="refreshButton" type="button" title="Restart preview" aria-label="Restart preview">↻</button>
-              <button class="icon-action" id="downloadButton" type="button" title="Export PNG" aria-label="Export artwork as PNG">↓</button>
+              <button class="icon-action" id="downloadButton" type="button" title="Export artwork" aria-label="Open artwork export settings">↓</button>
               <button class="icon-action" id="fullscreenButton" type="button" title="Fullscreen preview" aria-label="Show preview fullscreen">⛶</button>
             </div>
           </div>
@@ -216,6 +214,8 @@
             </select>
             <label for="libraryCategory">Category</label>
             <select id="libraryCategory"><option value="all">All categories</option></select>
+            <button class="library-upload" id="uploadAssetButton" type="button">Upload image</button>
+            <input id="assetFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden />
             <span id="libraryCount"></span>
           </div>
           <div class="library-list" id="libraryList"></div>
@@ -269,6 +269,35 @@
         </div>
       </dialog>
 
+      <dialog class="layers-dialog" id="layersDialog">
+        <div class="dialog-heading"><div><span class="eyebrow">Portable source composition</span><h2>Composition layers</h2><p>Reorder, hide, blend, or remove reusable components without changing the base artwork.</p></div><button class="icon-button" id="closeLayersButton" type="button" aria-label="Close composition layers">×</button></div>
+        <div class="layers-content"><div class="layers-list" id="layersList"></div><p class="layers-note">Base artwork remains editable source. Library components added from now on appear as portable marked blocks.</p></div>
+      </dialog>
+
+      <dialog class="export-dialog" id="exportDialog">
+        <div class="dialog-heading">
+          <div><span class="eyebrow">Professional delivery</span><h2>Export artwork</h2><p>Choose exact still dimensions or capture the live animation as WebM.</p></div>
+          <button class="icon-button" id="closeExportButton" type="button" aria-label="Close export settings">×</button>
+        </div>
+        <form class="export-form" id="exportForm">
+          <label>Output type<select id="exportType"><option value="still">Still image</option><option value="video">Animation</option></select></label>
+          <section id="stillExportFields" class="export-fields">
+            <label>Preset<select id="exportPreset"><option value="custom">Custom</option><option value="1080x1080">Social square · 1080</option><option value="1920x1080">Full HD · 1920×1080</option><option value="3840x2160">4K UHD · 3840×2160</option><option value="2480x3508">A4 print · 300 DPI</option></select></label>
+            <div class="export-pair"><label>Width<input id="exportWidth" type="number" min="64" max="10000" required /></label><label>Height<input id="exportHeight" type="number" min="64" max="10000" required /></label></div>
+            <label>Format<select id="exportFormat"><option value="image/png">PNG</option><option value="image/jpeg">JPEG</option><option value="image/webp">WebP</option></select></label>
+            <label>Quality<input id="exportQuality" type="range" min="0.1" max="1" value="0.92" step="0.01" /></label>
+            <label class="export-check"><input id="exportTransparent" type="checkbox" checked /> Preserve existing transparency</label>
+            <label>Solid background<input id="exportBackground" type="color" value="#020406" /></label>
+          </section>
+          <section id="videoExportFields" class="export-fields hidden">
+            <div class="export-pair"><label>Duration<input id="exportDuration" type="number" min="1" max="15" value="5" step="1" /></label><label>Frame rate<select id="exportFps"><option>24</option><option selected>30</option><option>60</option></select></label></div>
+            <p>Animation capture records the current responsive preview at its visible size. WebM support depends on the browser.</p>
+          </section>
+          <div class="export-summary" id="exportSummary"></div>
+          <div class="export-actions"><button type="button" id="cancelExportButton">Cancel</button><button class="checkpoint-action" type="submit">Export</button></div>
+        </form>
+      </dialog>
+
       <dialog class="help-dialog" id="helpDialog">
         <div class="dialog-heading help-heading">
           <div>
@@ -305,7 +334,7 @@
             <div class="help-flow" aria-label="Editor to sandbox to canvas and console flow">
               <div><span>1</span><strong>CodeMirror editor</strong><small>Highlights and stores your JavaScript</small></div>
               <i aria-hidden="true">→</i>
-              <div><span>2</span><strong>Sandbox runtime</strong><small>Starts a clean iframe execution</small></div>
+              <div><span>2</span><strong>Worker sandbox</strong><small>Starts an isolated OffscreenCanvas execution</small></div>
               <i aria-hidden="true">→</i>
               <div><span>3</span><strong>Canvas + console</strong><small>Displays pixels and diagnostics</small></div>
             </div>
@@ -324,7 +353,7 @@
                 <div><dt><code>createButton(label)</code></dt><dd>Add an artwork interaction</dd></div>
                 <div><dt><code>seed</code> / <code>random()</code></dt><dd>Reproducible workspace variation</dd></div>
                 <div><dt><code>createRandom(seed)</code></dt><dd>Independent seeded sequence</dd></div>
-                <div><dt><code>loadImageAsset(id)</code></dt><dd>Load an export-safe built-in image</dd></div>
+                <div><dt><code>loadImageAsset(id)</code></dt><dd>Load an export-safe library or uploaded image</dd></div>
               </dl>
             </div>
             <div>
@@ -338,6 +367,8 @@
                 <div><dt>Find in code</dt><dd><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>F</kbd></dd></div>
                 <div><dt>Save locally</dt><dd>Automatic</dd></div>
                 <div><dt>New variation</dt><dd>Press the seed above the preview</dd></div>
+                <div><dt>Stop artwork</dt><dd>Terminates the current Worker safely</dd></div>
+                <div><dt>Close a dialog</dt><dd><kbd>Escape</kbd></dd></div>
               </dl>
             </div>
           </section>

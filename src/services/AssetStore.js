@@ -12,17 +12,30 @@ export class AssetStore {
     return this.byId.has(assetId);
   }
 
+  register(entry) {
+    if (!entry?.id || (!entry.url && !(entry.blob instanceof Blob))) return false;
+    this.byId.set(entry.id, entry);
+    this.cache.delete(entry.id);
+    return true;
+  }
+
+  remove(assetId) {
+    this.cache.delete(assetId);
+    return this.byId.delete(assetId);
+  }
+
   async loadDataUrl(assetId) {
     if (!this.byId.has(assetId)) throw new Error("Unknown library asset.");
     if (this.cache.has(assetId)) return this.cache.get(assetId);
 
-    const promise = this.fetchResource(this.byId.get(assetId).url)
+    const entry = this.byId.get(assetId);
+    const promise = (entry.blob ? Promise.resolve(entry.blob) : this.fetchResource(entry.url)
       .then(response => {
         if (!response.ok) throw new Error("The library asset could not be loaded.");
         const size = Number(response.headers.get("content-length"));
         if (size && size > MAX_ASSET_BYTES) throw new Error("The library asset exceeds the 12 MB limit.");
         return response.blob();
-      })
+      }))
       .then(blob => {
         if (blob.size > MAX_ASSET_BYTES) throw new Error("The library asset exceeds the 12 MB limit.");
         return this.convertBlob(blob);

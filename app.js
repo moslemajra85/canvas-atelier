@@ -7,6 +7,7 @@ import { ProjectStorage } from "./src/services/ProjectStorage.js";
 import { StudioController } from "./src/ui/StudioController.js";
 import { AssetStore } from "./src/services/AssetStore.js";
 import { builtInAssets } from "./src/services/builtinAssets.js";
+import { UserAssetStore } from "./src/services/UserAssetStore.js";
 
 const elements = {
   editorHost: document.querySelector("#codeEditor"),
@@ -26,20 +27,44 @@ const elements = {
   clearConsole: document.querySelector("#clearConsoleButton"),
   running: document.querySelector("#runningIndicator"),
   animation: document.querySelector("#animationButton"),
+  stop: document.querySelector("#stopButton"),
   fps: document.querySelector("#fpsLabel"),
   seed: document.querySelector("#seedLabel"),
   seedButton: document.querySelector("#seedButton"),
   download: document.querySelector("#downloadButton"),
   fullscreen: document.querySelector("#fullscreenButton"),
+  exportDialog: document.querySelector("#exportDialog"),
+  closeExport: document.querySelector("#closeExportButton"),
+  cancelExport: document.querySelector("#cancelExportButton"),
+  exportForm: document.querySelector("#exportForm"),
+  exportType: document.querySelector("#exportType"),
+  exportPreset: document.querySelector("#exportPreset"),
+  exportWidth: document.querySelector("#exportWidth"),
+  exportHeight: document.querySelector("#exportHeight"),
+  exportFormat: document.querySelector("#exportFormat"),
+  exportQuality: document.querySelector("#exportQuality"),
+  exportTransparent: document.querySelector("#exportTransparent"),
+  exportBackground: document.querySelector("#exportBackground"),
+  exportDuration: document.querySelector("#exportDuration"),
+  exportFps: document.querySelector("#exportFps"),
+  stillExportFields: document.querySelector("#stillExportFields"),
+  videoExportFields: document.querySelector("#videoExportFields"),
+  exportSummary: document.querySelector("#exportSummary"),
   canvasStage: document.querySelector("#canvasStage"),
   toast: document.querySelector("#toast"),
   libraryButton: document.querySelector("#libraryButton"),
+  layersButton: document.querySelector("#layersButton"),
+  layersDialog: document.querySelector("#layersDialog"),
+  closeLayers: document.querySelector("#closeLayersButton"),
+  layersList: document.querySelector("#layersList"),
   libraryDialog: document.querySelector("#libraryDialog"),
   closeLibrary: document.querySelector("#closeLibraryButton"),
   libraryType: document.querySelector("#libraryType"),
   libraryCategory: document.querySelector("#libraryCategory"),
   libraryCount: document.querySelector("#libraryCount"),
   libraryList: document.querySelector("#libraryList"),
+  uploadAsset: document.querySelector("#uploadAssetButton"),
+  assetFileInput: document.querySelector("#assetFileInput"),
   particleBuilderDialog: document.querySelector("#particleBuilderDialog"),
   closeParticleBuilder: document.querySelector("#closeParticleBuilderButton"),
   particleBuilderTitle: document.querySelector("#particleBuilderTitle"),
@@ -109,7 +134,10 @@ storage.loadSketches().forEach(sketch => {
   ));
 });
 const consoleStore = new ConsoleStore();
+const userAssets = new UserAssetStore();
+const userAssetRecords = await userAssets.list().catch(() => []);
 const assets = new AssetStore(builtInAssets);
+userAssetRecords.forEach(record => assets.register(record));
 const runtime = new PreviewRuntime({ frame: elements.frame, events, assets });
 const initialLesson = lessonCatalog.get(
   storage.loadActiveLesson(lessonCatalog.defaultLesson.id)
@@ -151,7 +179,10 @@ studio = new StudioController({
   events,
   lessonCatalog,
   initialLesson,
-  elements
+  elements,
+  assets,
+  userAssets,
+  userAssetRecords
 });
 
 studio.updateCursor({ line: 1, column: 1 });

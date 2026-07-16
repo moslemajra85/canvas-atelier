@@ -7,11 +7,15 @@ test("preview document contains the run identity and runtime helpers", () => {
 
   assert.match(document, /const RUN_ID = 42/);
   assert.match(document, /function onResize/);
-  assert.match(document, /window\.requestAnimationFrame/);
+  assert.match(document, /self\.requestAnimationFrame/);
+  assert.match(document, /transferControlToOffscreen/);
+  assert.match(document, /ExecutionTimeoutError/);
+  assert.match(document, /worker\?\.terminate/);
   assert.match(document, /atelier-animation-state/);
+  assert.match(document, /atelier-stop/);
   assert.match(document, /sourceURL=artwork\.js/);
   assert.match(document, /send\("diagnostic"/);
-  assert.match(document, /const seed = "c0ffee42"/);
+  assert.match(document, /c0ffee42/);
   assert.match(document, /const random = createRandom\(seed\)/);
   assert.match(document, /function loadImageAsset/);
   assert.match(document, /atelier-asset-response/);

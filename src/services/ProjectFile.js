@@ -1,10 +1,10 @@
 import { normalizeSeed } from "./Seed.js";
 
 const PROJECT_SCHEMA = "canvas-atelier-project";
-const PROJECT_VERSION = 1;
+const PROJECT_VERSION = 2;
 const MAX_IMPORTED_REVISIONS = 15;
 
-export function createProjectFile({ lesson, source, seed, completedCheckpointIds, revisions }, date = new Date()) {
+export function createProjectFile({ lesson, source, seed, completedCheckpointIds, revisions, particlePresets = [], assets = [] }, date = new Date()) {
   return JSON.stringify({
     schema: PROJECT_SCHEMA,
     version: PROJECT_VERSION,
@@ -18,7 +18,9 @@ export function createProjectFile({ lesson, source, seed, completedCheckpointIds
     source,
     seed: normalizeSeed(seed) ?? "atelier",
     completedCheckpointIds: normalizeStringArray([...completedCheckpointIds]),
-    revisions: normalizeRevisions(revisions).slice(0, MAX_IMPORTED_REVISIONS)
+    revisions: normalizeRevisions(revisions).slice(0, MAX_IMPORTED_REVISIONS),
+    particlePresets: normalizeParticlePresets(particlePresets),
+    assets: normalizeAssets(assets)
   }, null, 2);
 }
 
@@ -33,7 +35,7 @@ export function parseProjectFile(contents) {
   if (!value || value.schema !== PROJECT_SCHEMA) {
     throw new Error("This is not a Canvas Atelier project file.");
   }
-  if (value.version !== PROJECT_VERSION) {
+  if (![1, PROJECT_VERSION].includes(value.version)) {
     throw new Error(`Project version ${String(value.version)} is not supported.`);
   }
   if (typeof value.lesson?.id !== "string" || typeof value.source !== "string") {
@@ -54,8 +56,41 @@ export function parseProjectFile(contents) {
     source: value.source,
     seed: normalizeSeed(value.seed),
     completedCheckpointIds: normalizeStringArray(value.completedCheckpointIds),
-    revisions: normalizeRevisions(value.revisions).slice(0, MAX_IMPORTED_REVISIONS)
+    revisions: normalizeRevisions(value.revisions).slice(0, MAX_IMPORTED_REVISIONS),
+    particlePresets: value.version >= 2 ? normalizeParticlePresets(value.particlePresets) : [],
+    assets: value.version >= 2 ? normalizeAssets(value.assets) : []
   };
+}
+
+function normalizeParticlePresets(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(preset => (
+    preset && /^custom-[a-z0-9-]{1,70}$/.test(preset.id) &&
+    typeof preset.title === "string" && preset.title.trim() &&
+    preset.config && typeof preset.config === "object" && !Array.isArray(preset.config) &&
+    Array.isArray(preset.config.colors) && preset.config.colors.some(color => /^#[0-9a-f]{6}$/i.test(color))
+  )).slice(0, 20).map(preset => ({
+    id: preset.id,
+    title: preset.title.trim().slice(0, 60),
+    createdAt: typeof preset.createdAt === "string" ? preset.createdAt : new Date(0).toISOString(),
+    config: { ...preset.config, colors: preset.config.colors.filter(color => /^#[0-9a-f]{6}$/i.test(color)).slice(0, 8) }
+  }));
+}
+
+function normalizeAssets(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(asset => (
+    asset && /^user-[a-z0-9-]{1,80}$/.test(asset.id) &&
+    typeof asset.name === "string" &&
+    ["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(asset.mimeType) &&
+    typeof asset.dataUrl === "string" && asset.dataUrl.startsWith(`data:${asset.mimeType};base64,`)
+  )).slice(0, 30).map(asset => ({
+    id: asset.id,
+    name: asset.name.trim().slice(0, 80),
+    mimeType: asset.mimeType,
+    license: typeof asset.license === "string" ? asset.license.trim().slice(0, 120) : "User supplied",
+    dataUrl: asset.dataUrl
+  }));
 }
 
 function normalizeStringArray(value) {

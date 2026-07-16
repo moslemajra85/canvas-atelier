@@ -41,3 +41,18 @@ test("AssetStore rejects oversized built-in assets before decoding", async () =>
 
   await assert.rejects(() => assets.loadDataUrl("huge"), /12 MB limit/);
 });
+
+test("AssetStore registers, replaces, and removes user blobs without fetching", async () => {
+  let fetchCount = 0;
+  const first = new Blob(["first"], { type: "image/png" });
+  const second = new Blob(["second"], { type: "image/png" });
+  const assets = new AssetStore([], async () => { fetchCount += 1; }, async blob => `data:${await blob.text()}`);
+
+  assert.equal(assets.register({ id: "user-test", blob: first }), true);
+  assert.equal(await assets.loadDataUrl("user-test"), "data:first");
+  assert.equal(assets.register({ id: "user-test", blob: second }), true);
+  assert.equal(await assets.loadDataUrl("user-test"), "data:second");
+  assert.equal(assets.remove("user-test"), true);
+  await assert.rejects(() => assets.loadDataUrl("user-test"), /Unknown library asset/);
+  assert.equal(fetchCount, 0);
+});

@@ -1,6 +1,6 @@
 # Canvas Atelier
 
-Canvas Atelier is a browser-based creative-coding studio for learning generative art with JavaScript and the Canvas 2D API. It combines a focused code editor, an isolated live preview, a real error console, guided teaching notes, local persistence, and PNG export.
+Canvas Atelier is a browser-based creative-coding studio for learning and producing generative art with JavaScript and the Canvas 2D API. It combines guided lessons with an independent professional workspace, isolated execution, reusable fractal and particle components, portable assets, composition layers, and high-resolution image or video export.
 
 [![Canvas Atelier kinetic fractal lesson](images/studio-overview.png)](images/studio-overview.png)
 
@@ -18,29 +18,31 @@ Open `http://localhost:4173`.
 
 Create an optimized production build with `npm run build`; preview it with `npm run preview`.
 
-## What the MVP includes
+## What version 1 includes
 
 - A responsive two-pane workspace: JavaScript editor on the left, artwork on the right.
 - Run button and `Ctrl/⌘ + Enter` shortcut.
 - Debounced auto-run, so edits update the preview without rerunning on every keystroke.
-- A sandboxed iframe runtime that protects the studio from learner code.
+- A sandboxed iframe plus dedicated Worker runtime with OffscreenCanvas rendering, manual Stop, and a five-second initialization watchdog.
 - Captured `console.log`, `console.info`, `console.warn`, runtime errors, syntax errors, and unhandled promise rejections.
 - Highlighted diagnostic lines and clickable console errors that return focus to learner code.
 - Automatic local saving through `localStorage`.
 - Rolling per-lesson revision history with idle snapshots, manual versions, and protected restore.
-- Versioned JSON project export/import containing source, checkpoint progress, and revision history.
+- Versioned JSON project export/import containing source, checkpoint progress, revision history, custom particle presets, and referenced user assets.
 - Named personal sketches with independent drafts and a local create/open/delete gallery.
 - Persisted deterministic seeds with reproducible runtime random generators and seed-aware exports.
 - A checkpoint-free standalone playground for independent creative work.
 - A lazily loaded creative library with 12 fractal templates/components, 12 reusable particle effects, and four original raster textures.
 - A sandboxed visual particle configurator with quality scaling, live code generation, particle layer order, and locally saved custom presets.
-- CodeMirror 6 syntax highlighting, code folding, bracket matching, search, history, line numbers, and keyboard indentation.
+- CodeMirror 6 syntax highlighting, code folding, bracket matching, search, history, line numbers, runtime-aware autocomplete, semantic warnings, and keyboard indentation.
 - First-class animation pause/resume and live frame-rate reporting.
 - Three selectable lessons with independent locally saved drafts.
 - Three guided checkpoints per lesson with hints, code checks, manual visual review, and persisted progress.
 - An in-app handbook with a real interface screenshot, workflow guidance, runtime concepts, API reference, and shortcuts.
 - High-DPI canvas rendering and responsive resize helpers.
-- PNG export, fullscreen preview, restart, reset, and a starter lesson card.
+- Exact-size PNG, JPEG, and WebP export; WebM animation recording; fullscreen preview; restart; reset; and print/social presets.
+- Portable composition layers with visibility, opacity, blend mode, ordering, and protected removal.
+- IndexedDB-backed PNG, JPEG, WebP, and sanitized SVG uploads with license notes and project packaging.
 - Keyboard-accessible controls and reduced-motion support.
 
 ## Project structure
@@ -76,13 +78,14 @@ js-art/
 5. Open **Goals**, work through the current challenge, and use its hint when you get stuck.
 6. Press **New mutation** inside the artwork to generate another butterfly.
 7. Use the pause button above the preview to freeze or resume animation.
-8. Use the down-arrow action to export the current canvas as a PNG.
+8. Use the down-arrow action to export an exact-size still image or a WebM animation.
 9. Use **Reset** to restore the lesson. Reset is destructive, so the app asks for confirmation.
 10. Open the **Revision history** action to save or restore one of the latest 15 distinct versions.
 11. Use **Export** to create an `.atelier.json` backup and **Import** to restore it on another browser.
 12. Open **My sketches** to duplicate the current artwork into an independent named workspace.
 13. Press the seed control above the preview to generate and rerun a reproducible variation.
-14. Open the creative library to start a new sketch or insert a compatible fractal or particle component into the current source.
+14. Open the creative library to start a sketch, upload an image, or insert a fractal or particle component.
+15. Open **Composition layers** to reorder or non-destructively adjust inserted components.
 
 Each lesson or sketch draft is stored under `canvas-atelier:lesson:<workspace-id>`, checkpoint progress under `canvas-atelier:progress:<workspace-id>`, rolling revisions under `canvas-atelier:revisions:<workspace-id>`, and its seed under `canvas-atelier:seed:<workspace-id>`. Personal sketch metadata is stored separately. This is device-local recovery, not cloud storage or version control. Clearing site data removes it.
 
@@ -98,7 +101,7 @@ The separate **Standalone playground** has no checkpoints and is intended for in
 
 The particle library contains flame, smoke, snow, rain, sparks, confetti, fireflies, galaxy, pointer trail, dust, bubbles, and ember presets. **Customize** opens an isolated live preview where emission, budget, forces, size, opacity, shape, blend mode, colors, quality, and particle layer can be adjusted. Configurations can be inserted immediately or saved under **My presets** on this browser.
 
-Particle components use one shared scheduler and named systems, so several effects can coexist without creating a separate animation loop for each effect. Layer sorting is recalculated only when a system is added or removed. Every insertion becomes ordinary editable source and is therefore retained in local drafts, revisions, personal sketches, and project exports. The image section includes original nebula, mineral, paper/ink, and prismatic crystal textures loaded through an export-safe sandbox bridge.
+Particle components use one shared scheduler and named systems, so several effects can coexist without creating a separate animation loop for each effect. Layer sorting is recalculated only when a system is added or removed. Every insertion becomes ordinary editable source inside a portable layer marker, so it remains editable while also supporting visibility, opacity, blend, ordering, and removal controls. The image section includes four original textures plus user uploads loaded through an export-safe bridge.
 
 Open the **?** action for the full in-app handbook. The lesson selector keeps a separate editable draft for every lesson, so moving between exercises does not overwrite work.
 
@@ -108,7 +111,7 @@ Every run starts with a clean document containing a canvas. Learner code receive
 
 | Name | Type | Purpose |
 | --- | --- | --- |
-| `canvas` | `HTMLCanvasElement` | The drawing surface. |
+| `canvas` | Canvas-like object | The worker-owned drawing surface. |
 | `ctx` | `CanvasRenderingContext2D` | The Canvas 2D drawing context. |
 | `width` | `number` | Current preview width in CSS pixels. |
 | `height` | `number` | Current preview height in CSS pixels. |
@@ -118,7 +121,7 @@ Every run starts with a clean document containing a canvas. Learner code receive
 | `seed` | `string` | The current persisted workspace seed. |
 | `random()` | `function` | Returns the next deterministic number from 0 inclusive to 1 exclusive. |
 | `createRandom(seed)` | `function` | Creates an independent deterministic generator for a custom seed. |
-| `loadImageAsset(id)` | `function` | Loads an allow-listed built-in image as an export-safe `HTMLImageElement`. |
+| `loadImageAsset(id)` | `function` | Loads an allow-listed built-in or user image as an export-safe bitmap. |
 
 Minimal example:
 
@@ -140,9 +143,9 @@ console.log("Artwork ready");
 
 ## Error behavior
 
-Each run creates a new iframe document and evaluates the current editor contents. If parsing or execution fails, the exception is caught and displayed in the studio console. Global errors and rejected promises are also forwarded.
+Each run creates a new iframe document and a dedicated artwork Worker. The Worker evaluates the current editor contents and renders through an `OffscreenCanvas`; the iframe remains responsive and proxies buttons, pointer input, assets, and exports. If parsing or execution fails, the exception is displayed in the studio console. Global errors and rejected promises are also forwarded.
 
-The preview is intentionally replaced on every run. This clears old animation loops, DOM elements, event listeners, variables, and drawing state. It gives learners a deterministic reset instead of accumulating invisible state across runs.
+The preview is intentionally replaced on every run. This terminates the previous Worker and clears old animation loops, controls, event listeners, variables, and drawing state. **Stop** terminates it immediately, while initialization that fails to return within five seconds is stopped automatically.
 
 If an animation uses `requestAnimationFrame`, it runs until the next code execution replaces the iframe:
 
@@ -181,9 +184,9 @@ The design follows Open/Closed Principle pragmatically: stable runtime and edito
 
 The studio owns the page and canvas scaffolding. Learners edit only the creative code, which keeps early lessons focused. A future advanced mode could expose separate HTML, CSS, and JavaScript tabs, but putting all three languages in the first lesson would increase cognitive load.
 
-### Sandboxed execution
+### Sandboxed and worker-isolated execution
 
-Artwork runs inside an iframe with `allow-scripts`, but without `allow-same-origin`. It cannot directly read the parent document or the studio's local storage. Communication uses small `postMessage` events. See [the architecture guide](docs/ARCHITECTURE.md) for the trust boundary and known limitations.
+Artwork runs in a dedicated Worker connected to an `OffscreenCanvas`, hosted by an iframe with `allow-scripts` but without `allow-same-origin`. It cannot directly read the parent document or the studio's local storage. Communication uses small validated `postMessage` events. See [the architecture guide](docs/ARCHITECTURE.md) for the trust boundary and known limitations.
 
 ## Verification
 
@@ -194,7 +197,7 @@ npm run check
 npm run build
 ```
 
-Manual browser checks for this MVP:
+Manual browser checks for version 1:
 
 1. The initial butterfly renders and the console reports success.
 2. Changing a color rerenders after about 650 ms with auto-run enabled.
@@ -204,7 +207,7 @@ Manual browser checks for this MVP:
 6. Pause stops learner `requestAnimationFrame` callbacks; resume continues them.
 7. The FPS label updates for animated sketches.
 8. **New mutation** changes the artwork without rerunning the program.
-9. PNG export downloads a valid image.
+9. PNG/JPEG/WebP export produces the requested dimensions; WebM recording produces a playable animation.
 10. Fullscreen preview works and exits with `Escape`.
 11. Reset restores the starter only after confirmation.
 12. At narrow widths the editor and preview stack vertically.
@@ -212,29 +215,33 @@ Manual browser checks for this MVP:
 14. A library template creates an independent sketch and remains editable after reload.
 15. A built-in texture loads in the sandbox and the composed canvas still exports as PNG.
 16. Two particle components can be inserted into one standalone sketch, rerun, and restored from local source.
+17. `while (true) {}` is terminated after five seconds while the studio remains responsive.
+18. **Stop** terminates an animated artwork without discarding its source.
+19. Uploaded images survive reload, package only when referenced, and restore from project import.
+20. Composition layer changes persist as portable source and rerun without errors.
+21. Dialogs close with `Escape` and restore focus to their opener.
 
 ## Current limitations
 
 - Personal sketches, drafts, and revision history are local to one browser; there are no accounts or cloud sync.
-- The editor highlights syntax-tree and runtime-error lines, but does not yet provide semantic lint rules, autocomplete, or exact underlined ranges.
-- Code runs on the browser's main thread inside the preview. An accidental infinite loop can freeze the preview tab. A production execution service should add a Web Worker or instrumented runtime with time limits.
+- Semantic diagnostics intentionally cover common runtime-specific mistakes rather than replacing a full JavaScript type checker or linter.
+- Safe execution requires Worker and `OffscreenCanvas` support. Browsers without them receive a compatibility diagnostic instead of falling back to unsafe main-thread execution.
 - The console serialization is deliberately simple. Deep, circular, DOM, and function values are shown as simplified strings.
-- External images can make a canvas non-exportable because of browser CORS rules.
-- The built-in image library contains four project-created textures with origin/distribution notes. It does not yet manage user uploads or third-party licensed collections; those need IndexedDB storage, explicit license metadata, CORS-safe decoding, and project-file packaging.
-- Particle presets are Canvas 2D source components, not a node editor. Very high particle counts still consume main-thread time, and components currently expose configuration by editing their inserted JavaScript.
-- Custom preset definitions are device-local and separate from project exports. Their generated component code is portable once inserted, but sharing the reusable preset itself will require a preset export/import format.
-- PNG export uses the current preview dimensions. Print-resolution presets, color profiles, SVG, and video export are not implemented yet.
-- User code is not a security boundary against network access; iframe content can still make outgoing requests allowed by the page's Content Security Policy. A hosted release should define an explicit CSP.
+- Arbitrary remote images are not supported. Import a permitted local image into the asset library to keep rendering and export portable.
+- User assets live in IndexedDB on the current browser unless a project referencing them is exported. The uploader is responsible for recording and respecting image rights.
+- Particle presets are Canvas 2D source components, not a complete node editor. Very high particle counts still consume Worker CPU/GPU time and can reduce rendering frame rate.
+- Canvas export is raster-only. SVG artwork export, color profiles, transparent video, audio, frame sequences, and encoding progress are not implemented.
+- WebM availability and codecs depend on the browser; Safari compatibility should be validated before claiming cross-browser video support.
+- Worker isolation and CSP protect studio availability and data boundaries, but this is not a hostile-code execution service. Production should also send the CSP as an HTTP header and apply deployment-level monitoring.
 
-## Recommended roadmap
+## Post-v1 roadmap
 
 Build in vertical slices rather than adding many disconnected controls:
 
-1. **Asset pipeline:** add IndexedDB-backed user image/SVG imports, license/source metadata, thumbnails, and portable project packaging.
-2. **Professional export:** add explicit output dimensions, transparent backgrounds, SVG where applicable, and video/frame-sequence export.
-3. **Performance insight:** add frame-time statistics, long-frame warnings, and an optional profiler graph.
-4. **Diagnostics:** add semantic JavaScript lint rules, exact inline ranges, and safe autocomplete.
-5. **Animation tools:** add a timeline and animation cleanup API.
-6. **Production hardening:** add CSP, isolate long-running code, add accessibility/browser tests, and deploy immutable assets.
+1. **Cross-browser release CI:** automate Chromium, Firefox, and WebKit workflows, including accessibility scans and export downloads.
+2. **Performance insight:** add frame-time percentiles, long-frame warnings, worker memory guidance, and an optional profiler graph.
+3. **Animation tools:** add a timeline, frame-sequence export, and a documented cleanup lifecycle for complex compositions.
+4. **Asset organization:** add folders, tags, thumbnails, usage lookup, and explicit asset/preset package import without opening a full project.
+5. **Cloud collaboration:** only after authentication, ownership, conflict handling, quotas, and abuse controls have a concrete product need.
 
-The next milestone should be the asset pipeline and explicit export presets. Those turn the current reusable source library into a more complete professional workflow without hiding the underlying Canvas code.
+The recommended next milestone is automated cross-browser release coverage. It reduces production risk more than expanding the feature surface again.

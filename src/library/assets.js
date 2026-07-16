@@ -1,13 +1,15 @@
 import { builtInAssets } from "../services/builtinAssets.js";
 
-function textureSource(assetId, title) {
-  return `// ${title} — built-in raster asset loaded through the sandbox bridge.
+export function textureSource(assetId, title) {
+  return `// ${title} — image asset loaded through the sandbox bridge.
 let texture;
 
 function drawCover(image) {
-  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
-  const drawWidth = image.naturalWidth * scale;
-  const drawHeight = image.naturalHeight * scale;
+  const imageWidth = image.naturalWidth ?? image.width;
+  const imageHeight = image.naturalHeight ?? image.height;
+  const scale = Math.max(width / imageWidth, height / imageHeight);
+  const drawWidth = imageWidth * scale;
+  const drawHeight = imageHeight * scale;
   ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
@@ -36,6 +38,22 @@ async function initialize() {
 
 onResize(render);
 initialize().catch(error => console.error(error));`;
+}
+
+export function createUserImageEntry(record) {
+  return {
+    id: record.id,
+    kind: "image",
+    title: record.name,
+    category: "My images",
+    complexity: "User asset",
+    description: `Locally stored ${record.mimeType.replace("image/", "").toUpperCase()} image ready for Canvas compositions.`,
+    url: URL.createObjectURL(record.blob),
+    origin: "Imported by the user",
+    distributionNote: record.license,
+    userAsset: true,
+    source: textureSource(record.id, record.name)
+  };
 }
 
 const DISTRIBUTION_NOTE = "Generated for Canvas Atelier; verify applicable distribution terms before commercial redistribution.";

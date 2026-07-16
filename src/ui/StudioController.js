@@ -2,20 +2,24 @@ import { createProjectFile, parseProjectFile, projectFileName } from "../service
 import { createPersonalSketchDefinition } from "../lessons/index.js";
 import { generateSeed } from "../services/Seed.js";
 import { buildPreviewDocument } from "../runtime/PreviewRuntime.js";
+import { createLayerBlock, moveLayer, parseLayers, prepareLayeredSource, removeLayer, updateLayer } from "../services/LayerSource.js";
 
 const AUTO_RUN_DELAY = 650;
 const SAVE_DELAY = 350;
 const REVISION_DELAY = 5000;
-const MAX_PROJECT_FILE_SIZE = 1024 * 1024;
+const MAX_PROJECT_FILE_SIZE = 25 * 1024 * 1024;
 
 export class StudioController {
-  constructor({ editor, runtime, storage, consoleStore, events, lessonCatalog, initialLesson, elements }) {
+  constructor({ editor, runtime, storage, consoleStore, events, lessonCatalog, initialLesson, elements, assets = null, userAssets = null, userAssetRecords = [] }) {
     this.editor = editor;
     this.runtime = runtime;
     this.storage = storage;
     this.consoleStore = consoleStore;
     this.events = events;
     this.lessonCatalog = lessonCatalog;
+    this.assets = assets;
+    this.userAssets = userAssets;
+    this.userAssetRecords = userAssetRecords;
     this.currentLesson = initialLesson;
     this.currentSeed = this.storage.loadSeed(initialLesson.id, generateSeed());
     this.storage.saveSeed(initialLesson.id, this.currentSeed);
@@ -27,6 +31,7 @@ export class StudioController {
     this.imageCatalog = null;
     this.particleCatalog = null;
     this.createParticleEntry = null;
+    this.createUserImageEntry = null;
     this.particlePreviewTimer = null;
     this.particleBuilderEntry = null;
     this.elements = elements;
@@ -78,13 +83,16 @@ export class StudioController {
 
   run() {
     window.clearTimeout(this.autoRunTimer);
-    this.editorDiagnostics = this.editor.getSyntaxDiagnostics();
+    this.editorDiagnostics = this.editor.getDiagnostics();
     this.editor.setDiagnostics(this.editorDiagnostics);
     this.consoleStore.clear();
+    this.editorDiagnostics.filter(diagnostic => diagnostic.severity === "warning").forEach(diagnostic => {
+      this.consoleStore.add("warn", [diagnostic.message], undefined, { line: diagnostic.line, column: diagnostic.column });
+    });
     this.renderConsole();
     this.setAnimationUi(false);
     this.elements.fps.textContent = "— fps";
-    this.runtime.run(this.editor.getValue(), this.currentSeed);
+    this.runtime.run(prepareLayeredSource(this.editor.getValue()), this.currentSeed);
   }
 
   reset() {
@@ -135,10 +143,25 @@ export class StudioController {
       if (!this.runtime.paused) this.elements.fps.textContent = `${fps} fps`;
     });
     this.events.on("runtime:animation", ({ paused }) => this.setAnimationUi(paused));
-    this.events.on("runtime:export", ({ dataUrl }) => this.downloadDataUrl(dataUrl));
+    this.events.on("runtime:stopped", ({ reason }) => {
+      this.elements.running.classList.remove("visible");
+      this.elements.fps.textContent = "Stopped";
+      if (reason === "Stopped by user") this.showToast("Artwork stopped safely");
+    });
+    this.events.on("runtime:export", ({ dataUrl, mimeType }) => this.downloadDataUrl(dataUrl, mimeType));
   }
 
   bindControls() {
+    [
+      [this.elements.exportDialog, this.elements.download],
+      [this.elements.help, this.elements.helpButton],
+      [this.elements.revisionDialog, this.elements.historyButton],
+      [this.elements.galleryDialog, this.elements.galleryButton],
+      [this.elements.libraryDialog, this.elements.libraryButton],
+      [this.elements.layersDialog, this.elements.layersButton],
+      [this.elements.particleBuilderDialog, this.elements.libraryButton]
+    ].forEach(([dialog, opener]) => this.restoreDialogFocus(dialog, opener));
+
     this.elements.run.addEventListener("click", () => this.run());
     this.elements.refresh.addEventListener("click", () => this.run());
     this.elements.reset.addEventListener("click", () => this.reset());
@@ -147,9 +170,16 @@ export class StudioController {
       this.renderConsole();
     });
     this.elements.animation.addEventListener("click", () => this.runtime.toggleAnimation());
+    this.elements.stop.addEventListener("click", () => this.runtime.stop());
     this.elements.seedButton.addEventListener("click", () => this.generateNewSeed());
     this.elements.lessonSelect.addEventListener("change", event => this.switchLesson(event.target.value));
-    this.elements.download.addEventListener("click", () => this.runtime.requestExport());
+    this.elements.download.addEventListener("click", () => this.openExportDialog());
+    this.elements.closeExport.addEventListener("click", () => this.elements.exportDialog.close());
+    this.elements.cancelExport.addEventListener("click", () => this.elements.exportDialog.close());
+    this.elements.exportType.addEventListener("change", () => this.updateExportUi());
+    this.elements.exportPreset.addEventListener("change", () => this.applyExportPreset());
+    this.elements.exportForm.addEventListener("input", () => this.updateExportSummary());
+    this.elements.exportForm.addEventListener("submit", event => { event.preventDefault(); this.performExport(); });
     this.elements.fullscreen.addEventListener("click", async () => {
       try {
         await this.elements.canvasStage.requestFullscreen();
@@ -182,12 +212,19 @@ export class StudioController {
     this.elements.closeGallery.addEventListener("click", () => this.elements.galleryDialog.close());
     this.elements.createSketch.addEventListener("click", () => this.createPersonalSketch());
     this.elements.libraryButton.addEventListener("click", () => this.openLibrary());
+    this.elements.layersButton.addEventListener("click", () => this.openLayers());
+    this.elements.closeLayers.addEventListener("click", () => this.elements.layersDialog.close());
     this.elements.closeLibrary.addEventListener("click", () => this.elements.libraryDialog.close());
     this.elements.libraryType.addEventListener("change", () => {
       this.populateLibraryCategories();
       this.renderLibrary();
     });
     this.elements.libraryCategory.addEventListener("change", () => this.renderLibrary());
+    this.elements.uploadAsset.addEventListener("click", () => {
+      this.elements.assetFileInput.value = "";
+      this.elements.assetFileInput.click();
+    });
+    this.elements.assetFileInput.addEventListener("change", event => this.importUserAsset(event.target.files?.[0]));
     this.elements.closeParticleBuilder.addEventListener("click", () => this.elements.particleBuilderDialog.close());
     this.elements.particleBuilderForm.addEventListener("input", () => this.scheduleParticlePreview());
     this.elements.particleBuilderForm.addEventListener("submit", event => {
@@ -195,6 +232,10 @@ export class StudioController {
       this.insertConfiguredParticle();
     });
     this.elements.saveParticlePreset.addEventListener("click", () => this.saveConfiguredParticlePreset());
+  }
+
+  restoreDialogFocus(dialog, opener) {
+    dialog.addEventListener("close", () => opener.focus());
   }
 
   switchLesson(lessonId) {
@@ -333,9 +374,11 @@ export class StudioController {
       this.imageCatalog = module.imageCatalog;
       this.particleCatalog = module.particleCatalog;
       this.createParticleEntry = module.createParticleEntry;
+      this.createUserImageEntry = module.createUserImageEntry;
       this.storage.loadParticlePresets().forEach(preset => {
         this.particleCatalog.add(this.createParticleEntry(preset));
       });
+      this.userAssetRecords.forEach(record => this.imageCatalog.add(this.createUserImageEntry(record)));
     }
     this.populateLibraryCategories();
     this.renderLibrary();
@@ -417,6 +460,14 @@ export class StudioController {
         remove.addEventListener("click", () => this.deleteParticlePreset(entry));
         actions.append(remove);
       }
+      if (entry.userAsset) {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "danger";
+        remove.textContent = "Delete image";
+        remove.addEventListener("click", () => this.deleteUserAsset(entry));
+        actions.append(remove);
+      }
       content.append(meta, title, description, actions);
       card.append(preview, content);
       return card;
@@ -434,11 +485,74 @@ export class StudioController {
 
   insertLibraryEntry(entry) {
     this.createRevision("Before library insert");
-    this.editor.appendSnippet(entry.snippet);
+    this.editor.appendSnippet(createLayerBlock(entry));
     this.save();
     this.run();
     this.elements.libraryDialog.close();
     this.showToast(`${entry.title} added to the current code`);
+  }
+
+  openLayers() {
+    this.renderLayers();
+    this.elements.layersDialog.showModal();
+  }
+
+  renderLayers() {
+    const layers = parseLayers(this.editor.getValue());
+    const base = document.createElement("article");
+    base.className = "layer-item base-layer";
+    base.innerHTML = "<span>Base</span><strong>Artwork source</strong><small>Always rendered first</small>";
+    const rows = layers.map((layer, index) => {
+      const row = document.createElement("article");
+      row.className = "layer-item";
+      const visibility = document.createElement("input");
+      visibility.type = "checkbox";
+      visibility.checked = layer.enabled;
+      visibility.title = "Show layer";
+      visibility.addEventListener("change", () => this.changeLayer(layer.id, { enabled: visibility.checked }));
+      const details = document.createElement("div");
+      const title = document.createElement("strong"); title.textContent = layer.title;
+      const kind = document.createElement("small"); kind.textContent = layer.kind;
+      details.append(title, kind);
+      const opacity = document.createElement("input");
+      opacity.type = "range"; opacity.min = "0"; opacity.max = "1"; opacity.step = "0.05"; opacity.value = layer.opacity; opacity.title = `Opacity ${layer.opacity}`;
+      opacity.addEventListener("change", () => this.changeLayer(layer.id, { opacity: Number(opacity.value) }));
+      const blend = document.createElement("select");
+      ["source-over", "lighter", "screen", "multiply", "overlay", "soft-light"].forEach(value => blend.add(new Option(value === "source-over" ? "normal" : value, value)));
+      blend.value = layer.blend;
+      blend.addEventListener("change", () => this.changeLayer(layer.id, { blend: blend.value }));
+      const controls = document.createElement("div"); controls.className = "layer-order";
+      const up = document.createElement("button"); up.type = "button"; up.textContent = "↑"; up.disabled = index === 0; up.ariaLabel = "Move layer up"; up.addEventListener("click", () => this.reorderLayer(layer.id, -1));
+      const down = document.createElement("button"); down.type = "button"; down.textContent = "↓"; down.disabled = index === layers.length - 1; down.ariaLabel = "Move layer down"; down.addEventListener("click", () => this.reorderLayer(layer.id, 1));
+      const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.className = "danger"; remove.ariaLabel = "Remove layer"; remove.addEventListener("click", () => this.removeCompositionLayer(layer));
+      controls.append(up, down, remove);
+      row.append(visibility, details, opacity, blend, controls);
+      return row;
+    });
+    this.elements.layersList.replaceChildren(base, ...rows);
+  }
+
+  changeLayer(layerId, changes) {
+    this.editor.setValue(updateLayer(this.editor.getValue(), layerId, changes));
+    this.save();
+    this.run();
+    this.renderLayers();
+  }
+
+  reorderLayer(layerId, direction) {
+    this.editor.setValue(moveLayer(this.editor.getValue(), layerId, direction));
+    this.save();
+    this.run();
+    this.renderLayers();
+  }
+
+  removeCompositionLayer(layer) {
+    if (!window.confirm(`Remove “${layer.title}” and its generated code? A revision will be saved first.`)) return;
+    this.createRevision("Before removing layer");
+    this.editor.setValue(removeLayer(this.editor.getValue(), layer.id));
+    this.save();
+    this.run();
+    this.renderLayers();
   }
 
   openParticleBuilder(entry) {
@@ -545,6 +659,39 @@ export class StudioController {
     this.populateLibraryCategories();
     this.renderLibrary();
     this.showToast("Particle preset deleted");
+  }
+
+  async importUserAsset(file) {
+    if (!file || !this.userAssets) return;
+    const license = window.prompt("License or usage note for this image:", "User supplied; rights confirmed by uploader");
+    if (license === null) return;
+    try {
+      const record = await this.userAssets.saveFile(file, { name: file.name.replace(/\.[^.]+$/, ""), license });
+      this.userAssetRecords.push(record);
+      this.assets?.register(record);
+      if (this.imageCatalog && this.createUserImageEntry) this.imageCatalog.add(this.createUserImageEntry(record));
+      this.populateLibraryCategories();
+      this.renderLibrary();
+      this.showToast(`${record.name} added to My images`);
+    } catch (error) {
+      this.showToast(error.message);
+    }
+  }
+
+  async deleteUserAsset(entry) {
+    if (!window.confirm(`Delete the stored image “${entry.title}”? Existing source that references it will stop loading.`)) return;
+    try {
+      await this.userAssets.remove(entry.id);
+      this.userAssetRecords = this.userAssetRecords.filter(record => record.id !== entry.id);
+      this.assets?.remove(entry.id);
+      URL.revokeObjectURL(entry.url);
+      this.imageCatalog.remove(entry.id);
+      this.populateLibraryCategories();
+      this.renderLibrary();
+      this.showToast("Image deleted");
+    } catch (error) {
+      this.showToast(error.message);
+    }
   }
 
   createLibrarySketch(entry) {
@@ -683,13 +830,19 @@ export class StudioController {
     this.showToast("Personal sketch deleted");
   }
 
-  exportProjectFile() {
+  async exportProjectFile() {
+    let packagedAssets = [];
+    const referencedAssets = [...this.editor.getValue().matchAll(/loadImageAsset\(["'](user-[a-z0-9-]+)["']\)/g)].map(match => match[1]);
+    try { packagedAssets = await this.userAssets?.exportRecords(referencedAssets) ?? []; }
+    catch { this.showToast("Some user assets could not be packaged"); return; }
     const contents = createProjectFile({
       lesson: this.currentLesson,
       source: this.editor.getValue(),
       seed: this.currentSeed,
       completedCheckpointIds: this.completedCheckpointIds,
-      revisions: this.storage.loadRevisions(this.currentLesson.id)
+      revisions: this.storage.loadRevisions(this.currentLesson.id),
+      particlePresets: this.storage.loadParticlePresets(),
+      assets: packagedAssets
     });
     const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
     const link = document.createElement("a");
@@ -703,7 +856,7 @@ export class StudioController {
   async importProjectFile(file) {
     if (!file) return;
     if (file.size > MAX_PROJECT_FILE_SIZE) {
-      this.showToast("Project file is larger than the 1 MB limit");
+      this.showToast("Project file is larger than the 25 MB limit");
       return;
     }
 
@@ -778,6 +931,30 @@ export class StudioController {
         new Date(revision.createdAt)
       );
     });
+    project.particlePresets.forEach(preset => {
+      const saved = this.storage.saveParticlePreset(preset);
+      if (saved && this.particleCatalog && this.createParticleEntry) {
+        this.particleCatalog.remove(saved.id);
+        this.particleCatalog.add(this.createParticleEntry(saved));
+      }
+    });
+    if (project.assets.length && this.userAssets) {
+      try {
+        const importedAssets = await this.userAssets.importRecords(project.assets);
+        importedAssets.forEach(record => {
+          const existingIndex = this.userAssetRecords.findIndex(candidate => candidate.id === record.id);
+          if (existingIndex === -1) this.userAssetRecords.push(record);
+          else this.userAssetRecords[existingIndex] = record;
+          this.assets?.register(record);
+          if (this.imageCatalog && this.createUserImageEntry) {
+            this.imageCatalog.remove(record.id);
+            this.imageCatalog.add(this.createUserImageEntry(record));
+          }
+        });
+      } catch (error) {
+        this.showToast(`Project imported, but assets failed: ${error.message}`);
+      }
+    }
     this.storage.saveRevision(targetLesson.id, project.source, "Imported project");
 
     if (targetLesson.id !== this.currentLesson.id) {
@@ -924,12 +1101,74 @@ export class StudioController {
     this.elements.output.scrollTop = this.elements.output.scrollHeight;
   }
 
-  downloadDataUrl(dataUrl) {
+  openExportDialog() {
+    this.elements.exportWidth.value = Math.round(this.elements.frame.clientWidth || 1280);
+    this.elements.exportHeight.value = Math.round(this.elements.frame.clientHeight || 720);
+    this.elements.exportPreset.value = "custom";
+    this.elements.exportType.value = "still";
+    this.updateExportUi();
+    this.elements.exportDialog.showModal();
+  }
+
+  updateExportUi() {
+    const video = this.elements.exportType.value === "video";
+    this.elements.stillExportFields.classList.toggle("hidden", video);
+    this.elements.videoExportFields.classList.toggle("hidden", !video);
+    this.updateExportSummary();
+  }
+
+  applyExportPreset() {
+    if (this.elements.exportPreset.value === "custom") return;
+    const [width, height] = this.elements.exportPreset.value.split("x").map(Number);
+    this.elements.exportWidth.value = width;
+    this.elements.exportHeight.value = height;
+    this.updateExportSummary();
+  }
+
+  updateExportSummary() {
+    if (this.elements.exportType.value === "video") {
+      this.elements.exportSummary.textContent = `${this.elements.exportDuration.value}s WebM · ${this.elements.exportFps.value} fps · current preview size`;
+      return;
+    }
+    const width = Number(this.elements.exportWidth.value) || 0;
+    const height = Number(this.elements.exportHeight.value) || 0;
+    const memory = width * height * 4 / 1024 / 1024;
+    this.elements.exportSummary.textContent = `${width} × ${height} px · approximately ${memory.toFixed(1)} MB working memory`;
+  }
+
+  performExport() {
+    if (this.elements.exportType.value === "video") {
+      this.runtime.requestVideoExport({ duration: Number(this.elements.exportDuration.value), fps: Number(this.elements.exportFps.value) });
+      this.elements.exportDialog.close();
+      this.showToast("Recording animation…");
+      return;
+    }
+    const width = Number(this.elements.exportWidth.value);
+    const height = Number(this.elements.exportHeight.value);
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 64 || height < 64 || width > 10000 || height > 10000 || width * height > 100_000_000) {
+      this.showToast("Export dimensions must be 64–10,000 px and no more than 100 megapixels");
+      return;
+    }
+    this.runtime.requestExport({
+      width,
+      height,
+      mimeType: this.elements.exportFormat.value,
+      quality: Number(this.elements.exportQuality.value),
+      preserveTransparency: this.elements.exportTransparent.checked,
+      backgroundColor: this.elements.exportBackground.value
+    });
+    this.elements.exportDialog.close();
+    this.showToast("Rendering export…");
+  }
+
+  downloadDataUrl(dataUrl, mimeType = "image/png") {
+    const extensions = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "video/webm": "webm" };
+    const extension = extensions[mimeType] ?? "bin";
     const link = document.createElement("a");
     link.href = dataUrl;
-    link.download = `canvas-atelier-${this.currentSeed}-${new Date().toISOString().slice(0, 10)}.png`;
+    link.download = `canvas-atelier-${this.currentSeed}-${new Date().toISOString().slice(0, 10)}.${extension}`;
     link.click();
-    this.showToast("PNG export ready");
+    this.showToast(`${extension.toUpperCase()} export ready`);
   }
 
   showToast(message) {
