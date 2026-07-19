@@ -79,6 +79,13 @@ export class StudioController {
     const saved = this.storage.save(this.currentLesson.id, this.editor.getValue());
     this.elements.dirty.classList.toggle("visible", !saved);
     this.elements.saved.textContent = saved ? "Saved locally" : "Local save unavailable";
+    return saved;
+  }
+
+  flushPendingSave() {
+    window.clearTimeout(this.saveTimer);
+    this.saveTimer = null;
+    return this.save();
   }
 
   run() {
@@ -162,6 +169,7 @@ export class StudioController {
       [this.elements.particleBuilderDialog, this.elements.libraryButton]
     ].forEach(([dialog, opener]) => this.restoreDialogFocus(dialog, opener));
 
+    window.addEventListener("pagehide", () => this.flushPendingSave());
     this.elements.run.addEventListener("click", () => this.run());
     this.elements.refresh.addEventListener("click", () => this.run());
     this.elements.reset.addEventListener("click", () => this.reset());

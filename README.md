@@ -8,6 +8,8 @@ The first lesson produces a bioluminescent fractal butterfly. It is intentionall
 
 ## Run the project
 
+### Frontend-only development
+
 ```bash
 cd /home/moslem/Desktop/js-art
 npm install
@@ -17,6 +19,32 @@ npm run dev
 Open `http://localhost:4173`.
 
 Create an optimized production build with `npm run build`; preview it with `npm run preview`.
+
+This mode intentionally shows **Demo** in the account control. It needs no backend and keeps all work in browser storage.
+
+### Full Docker stack
+
+The authenticated application runs as three containers: Nginx, the Node account API, and PostgreSQL.
+
+```bash
+cp .env.example .env
+# Replace POSTGRES_PASSWORD in .env before starting.
+docker compose up --build
+```
+
+Open `http://localhost:8080`. PostgreSQL is isolated on the internal Docker network and is not published to the host. Account sessions use opaque random tokens in HttpOnly cookies; only token hashes are stored in the database.
+
+For HTTPS production, set `AUTH_ORIGIN` to the exact public origin and `COOKIE_SECURE=true`. See [authentication and deployment](docs/AUTHENTICATION.md) before deploying.
+
+### GitHub Pages portfolio demo
+
+The workflow at `.github/workflows/pages.yml` tests, builds, and deploys an anonymous demo from `main`. In the repository, choose **Settings → Pages → Source: GitHub Actions**. The expected project-page URL is:
+
+```text
+https://moslemajra85.github.io/canvas-atelier/
+```
+
+GitHub Pages cannot run the API or PostgreSQL, so its account control clearly reports demo mode. To demonstrate real authentication, deploy the Docker stack to a container host or VPS and link that URL instead.
 
 ## What version 1 includes
 
@@ -44,6 +72,7 @@ Create an optimized production build with `npm run build`; preview it with `npm 
 - Portable composition layers with visibility, opacity, blend mode, ordering, and protected removal.
 - IndexedDB-backed PNG, JPEG, WebP, and sanitized SVG uploads with license notes and project packaging.
 - Keyboard-accessible controls and reduced-motion support.
+- Anonymous GitHub Pages demo plus an optional Docker-hosted email/password identity system.
 
 ## Project structure
 
@@ -52,6 +81,11 @@ js-art/
 ├── index.html                 # Semantic application shell
 ├── styles.css                 # Visual system and responsive layout
 ├── app.js                     # Composition root: constructs and connects modules
+├── compose.yaml               # Web, API, and PostgreSQL infrastructure
+├── Dockerfile                 # Multi-stage frontend/Nginx image
+├── server/                    # Authentication HTTP API and image
+├── db/                        # PostgreSQL initialization schema
+├── infra/                     # Nginx reverse-proxy and security configuration
 ├── package.json               # Vite, CodeMirror, and project commands
 ├── public/assets/textures/    # Built-in original raster texture library
 ├── src/
@@ -223,7 +257,8 @@ Manual browser checks for version 1:
 
 ## Current limitations
 
-- Personal sketches, drafts, and revision history are local to one browser; there are no accounts or cloud sync.
+- Personal sketches, drafts, and revision history are local to one browser. Accounts are available in the Docker deployment, but there is no cloud sync yet.
+- Authentication establishes identity only. Projects and uploaded assets remain local until an owner-scoped cloud schema and synchronization policy are implemented.
 - Semantic diagnostics intentionally cover common runtime-specific mistakes rather than replacing a full JavaScript type checker or linter.
 - Safe execution requires Worker and `OffscreenCanvas` support. Browsers without them receive a compatibility diagnostic instead of falling back to unsafe main-thread execution.
 - The console serialization is deliberately simple. Deep, circular, DOM, and function values are shown as simplified strings.

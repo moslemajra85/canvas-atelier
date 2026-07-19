@@ -8,6 +8,8 @@ import { StudioController } from "./src/ui/StudioController.js";
 import { AssetStore } from "./src/services/AssetStore.js";
 import { builtInAssets } from "./src/services/builtinAssets.js";
 import { UserAssetStore } from "./src/services/UserAssetStore.js";
+import { AuthService } from "./src/services/AuthService.js";
+import { AuthController } from "./src/ui/AuthController.js";
 
 const elements = {
   editorHost: document.querySelector("#codeEditor"),
@@ -124,6 +126,21 @@ const elements = {
   closeHelp: document.querySelector("#closeHelpButton")
 };
 
+const authElements = {
+  button: document.querySelector("#authButton"),
+  dialog: document.querySelector("#authDialog"),
+  close: document.querySelector("#closeAuthButton"),
+  title: document.querySelector("#authTitle"),
+  body: document.querySelector("#authBody"),
+  error: document.querySelector("#authError"),
+  form: document.querySelector("#authForm"),
+  email: document.querySelector("#authEmail"),
+  password: document.querySelector("#authPassword"),
+  submit: document.querySelector("#signInButton"),
+  register: document.querySelector("#registerButton"),
+  signOut: document.querySelector("#signOutButton")
+};
+
 const events = new EventBus();
 const storage = new ProjectStorage();
 storage.loadSketches().forEach(sketch => {
@@ -187,3 +204,9 @@ studio = new StudioController({
 
 studio.updateCursor({ line: 1, column: 1 });
 studio.start();
+
+const authController = new AuthController({
+  auth: new AuthService(),
+  elements: authElements
+});
+authController.start();

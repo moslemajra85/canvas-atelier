@@ -28,3 +28,24 @@ test("application shell defines CSP and keyboard navigation without external run
   assert.match(html, /id="codeEditor" tabindex="-1"/);
   assert.match(html, /aria-label="Open artwork export settings"/);
 });
+
+test("release configuration preserves pending edits and uses the documented dev port", () => {
+  const controller = readFileSync(new URL("../src/ui/StudioController.js", import.meta.url), "utf8");
+  const viteConfig = readFileSync(new URL("../vite.config.js", import.meta.url), "utf8");
+
+  assert.match(controller, /addEventListener\("pagehide", \(\) => this\.flushPendingSave\(\)\)/);
+  assert.match(controller, /flushPendingSave\(\)[\s\S]*clearTimeout\(this\.saveTimer\)[\s\S]*this\.save\(\)/);
+  assert.match(viteConfig, /server:\s*\{\s*port:\s*4173/);
+});
+
+test("portfolio deployment and Docker infrastructure are defined", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
+  const compose = readFileSync(new URL("../compose.yaml", import.meta.url), "utf8");
+  const nginx = readFileSync(new URL("../infra/nginx.conf", import.meta.url), "utf8");
+
+  assert.match(workflow, /actions\/deploy-pages@v4/);
+  assert.match(workflow, /VITE_BASE_PATH: \/canvas-atelier\//);
+  assert.match(compose, /image: postgres:17-alpine/);
+  assert.match(compose, /postgres-data:/);
+  assert.match(nginx, /proxy_pass http:\/\/api:3000/);
+});

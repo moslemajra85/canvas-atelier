@@ -28,6 +28,7 @@
         </div>
 
         <nav class="top-actions" aria-label="Project actions">
+          <button class="auth-button" id="authButton" type="button" title="Portfolio demo mode">Demo</button>
           <button class="icon-button" id="helpButton" type="button" title="Help and guide" aria-label="Open help and guide">?</button>
           <button class="icon-button" id="libraryButton" type="button" title="Creative library" aria-label="Open creative component library">◈</button>
           <button class="icon-button" id="layersButton" type="button" title="Composition layers" aria-label="Open composition layers">☷</button>
@@ -153,6 +154,30 @@
       </aside>
 
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+      <dialog class="auth-dialog" id="authDialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">Canvas Atelier account</span>
+            <h2 id="authTitle">Portfolio demo mode</h2>
+            <p id="authBody">No account is required. Your work stays in this browser.</p>
+          </div>
+          <button class="icon-button" id="closeAuthButton" type="button" aria-label="Close account dialog">×</button>
+        </div>
+        <div class="auth-content">
+          <p class="auth-note">Authentication identifies you securely. Cloud project sync is a separate feature and is not enabled yet.</p>
+          <p class="auth-error" id="authError" role="alert"></p>
+          <form class="auth-form" id="authForm" hidden>
+            <label>Email<input id="authEmail" type="email" autocomplete="email" maxlength="254" required /></label>
+            <label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="10" maxlength="128" required /></label>
+            <div class="auth-actions">
+              <button id="registerButton" type="button">Create account</button>
+              <button class="github-auth-button" id="signInButton" type="submit">Sign in</button>
+            </div>
+          </form>
+          <div class="auth-actions"><button id="signOutButton" type="button" hidden>Sign out</button></div>
+        </div>
+      </dialog>
 
       <dialog class="revision-dialog" id="revisionDialog">
         <div class="dialog-heading">
@@ -309,7 +334,7 @@
         </div>
         <div class="help-content">
           <figure class="help-screenshot">
-            <img src="/images/studio-overview.png" alt="Canvas Atelier showing a syntax-highlighted JavaScript lesson beside an animated canvas preview" />
+            <img src="%BASE_URL%images/studio-overview.png" alt="Canvas Atelier showing a syntax-highlighted JavaScript lesson beside an animated canvas preview" />
             <figcaption>The editor, live artwork, animation tools, and diagnostic console stay visible together.</figcaption>
           </figure>
 

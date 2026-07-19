@@ -31,7 +31,7 @@ flowchart LR
 
 The learner changes text in the editor. Studio state saves the text and, when requested, builds a preview document. The iframe transfers its canvas to a dedicated Worker, which executes artwork code and renders through `OffscreenCanvas`. The iframe proxies UI controls, pointer input, assets, lifecycle events, and exports. Neither the Worker nor iframe receives a direct reference to the parent application.
 
-The diagram omits browser internals and deployment infrastructure. It describes the current single-user version 1 application, not a hosted collaboration platform.
+The diagram omits browser internals and deployment infrastructure. It describes the editor and local persistence path; the optional Docker identity boundary is documented separately in [Authentication and deployment](AUTHENTICATION.md). Authentication does not yet move project data out of browser storage.
 
 ## Runtime sequence
 
